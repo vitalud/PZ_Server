@@ -1,0 +1,88 @@
+﻿<Window x:Class="Server.Views.Windows.MainView"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="clr-namespace:Server.ViewModels"
+        xmlns:local="clr-namespace:Server.Views.UserControls"
+        mc:Ignorable="d"
+        MinHeight="500" MinWidth="800"
+        ResizeMode="CanResize"
+        WindowStartupLocation="CenterScreen"
+        BorderThickness="1"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        BorderBrush="LightGray"
+        Background="WhiteSmoke">
+    <Window.Resources>
+        <DataTemplate DataType="{x:Type vm:BursesViewModel}">
+            <local:BursesControl/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ExcelClientsViewModel}">
+            <local:ClientsControl/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ServerViewModel}">
+            <local:ServerControl/>
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:StrategiesViewModel}">
+            <local:StrategiesControl/>
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="25"/>
+            <RowDefinition/>
+        </Grid.RowDefinitions>
+
+        <Grid Name="TopMenu" Grid.Row="0" Background="Transparent" 
+              MouseDown="TopMenu_MouseDown">
+            <DockPanel>
+                <Button Style="{StaticResource TopMenuButton}" Click="CloseWindow" Content="X"/>
+                <Button Style="{StaticResource TopMenuButton}" Click="MaximizeWindow" Content="[]"/>
+                <Button Style="{StaticResource TopMenuButton}" Click="MinimizeWindow" Content="_">
+                </Button>
+            </DockPanel>
+        </Grid>
+
+        <Grid x:Name="Content" Grid.Row="1" Background="Transparent">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="120"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Grid Grid.Column="0" Background="WhiteSmoke">
+                <Border BorderThickness="0,0,1,0"
+                    BorderBrush="Gray">
+
+                </Border>
+                <StackPanel Orientation="Vertical" DockPanel.Dock="Left">
+                    <Button Command="{Binding ShowServerCommand}" 
+                        Style="{StaticResource MainMenuLeftButton}" 
+                        Content="Сервер"/>
+                    <Separator Height="1" Background="Gray"></Separator>
+                    <Button Command="{Binding ShowClientsCommand}"
+                        Style="{StaticResource MainMenuLeftButton}" 
+                        Content="Клиентская база"/>
+                    <Separator Height="1" Background="Gray"></Separator>
+                    <Button Command="{Binding ShowBursesCommand}"
+                        Style="{StaticResource MainMenuLeftButton}" 
+                        Content="Биржи"/>
+                    <Separator Height="1" Background="Gray"></Separator>
+                    <Button Command="{Binding ShowStrategiesCommand}"
+                        Style="{StaticResource MainMenuLeftButton}" 
+                        Content="Стратегии"/>
+                </StackPanel>
+                <Button Command="{Binding TestCommand}"
+                        Style="{StaticResource MainMenuLeftButton}" 
+                        Content="Тест"
+                        VerticalAlignment="Bottom"/>
+            </Grid>
+            <Grid Grid.Column="1">
+                <ContentPresenter Content="{Binding CurrentViewModel}" 
+                              HorizontalAlignment="Stretch" 
+                              VerticalAlignment="Stretch"/>
+            </Grid>
+        </Grid>
+    </Grid>
+</Window>
