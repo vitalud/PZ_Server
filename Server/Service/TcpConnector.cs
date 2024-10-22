@@ -33,16 +33,16 @@ namespace Server.Models
             IsActive = false;
             _authListener.Stop();
             _dataListener.Stop();
-            Logger.AddLog(_logs, $"stop tcp-listener");
+            Logger.AddLog(Logs, $"stop tcp-listener");
         }
         public async Task StartAsync()
         {
-            Logger.AddLog(_logs, "start tcp-listener");
+            Logger.AddLog(Logs, "start tcp-listener");
             while (IsActive)
             {
                 await _connectionSemaphore.WaitAsync();
                 var authClient = await _authListener.AcceptTcpClientAsync();
-                Logger.AddLog(_logs, "new authorization request");
+                Logger.AddLog(Logs, "new authorization request");
                 _ = HandleAuthClientAsync(authClient);
             }
         }
@@ -62,7 +62,7 @@ namespace Server.Models
                 using var networkStream = authClient.GetStream();
                 var receivedMessage = await TcpService.ReadMessageAsync(networkStream);
                 string[] data = receivedMessage.Split('_');
-                Logger.AddLog(_logs, $"authorization from {data[0]}");
+                Logger.AddLog(Logs, $"authorization from {data[0]}");
                 var client = _clientDataBase.Clients.Items.FirstOrDefault(x => (x.Data.Login, x.Data.Password) == (data[0], data[1]));
                 if (client != null)
                 {
@@ -70,14 +70,14 @@ namespace Server.Models
                     var responseMessage = Converter.CreateMessage("auth_success");
                     var responseBytes = Encoding.UTF8.GetBytes(responseMessage);
                     await networkStream.WriteAsync(responseBytes);
-                    Logger.AddLog(_logs, $"Авторизирован {data[0]}");
+                    Logger.AddLog(Logs, $"Авторизирован {data[0]}");
                 }
                 else
                 {
                     var responseMessage = Converter.CreateMessage("auth_failure");
                     var responseBytes = Encoding.UTF8.GetBytes(responseMessage);
                     await networkStream.WriteAsync(responseBytes);
-                    Logger.AddLog(_logs, $"Ошибка авторизации {data[0]}");
+                    Logger.AddLog(Logs, $"Ошибка авторизации {data[0]}");
                 }
             }
             finally
@@ -102,7 +102,7 @@ namespace Server.Models
                         if (client != null)
                         {
                             ActiveConnections++;
-                            Logger.AddLog(_logs, $"Запрос стратегий от {client.Data.Login}");
+                            Logger.AddLog(Logs, $"Запрос стратегий от {client.Data.Login}");
                             client.Stream = networkStream;
                             client.IsActive = true;
                             await SendStrategies(client);
@@ -134,7 +134,7 @@ namespace Server.Models
                     }
                     byte[] json = Encoding.UTF8.GetBytes("strategy_" + jsonStrat);
                     await client.Stream.WriteAsync(json);
-                    Logger.AddLog(_logs, $"Отправил стратегию {strategy.Code} пользователю {client.Data.Login}");
+                    Logger.AddLog(Logs, $"Отправил стратегию {strategy.Code} пользователю {client.Data.Login}");
                 }
             }
         }
@@ -174,12 +174,12 @@ namespace Server.Models
                     if (data[2].Equals("True"))
                     {
                         strat.ActivatedByClient = true;
-                        Logger.AddLog(_logs, $"Пользователь {client.Data.Login} включил стратегию {strat.Code}");
+                        Logger.AddLog(Logs, $"Пользователь {client.Data.Login} включил стратегию {strat.Code}");
                     }
                     else
                     {
                         strat.ActivatedByClient = false;
-                        Logger.AddLog(_logs, $"Пользователь {client.Data.Login} выключил стратегию {strat.Code}");
+                        Logger.AddLog(Logs, $"Пользователь {client.Data.Login} выключил стратегию {strat.Code}");
                     }
                 }
             }
