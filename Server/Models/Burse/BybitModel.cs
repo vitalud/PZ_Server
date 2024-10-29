@@ -27,32 +27,23 @@ namespace Server.Models.Burse
             { KlineInterval.OneDay, CustomInterval.OneDay }
         };
 
-        public BybitModel(InstrumentService instrumentService) : base(instrumentService)
+        public BybitModel(InstrumentService instrumentService, BurseName name) : base(instrumentService, name)
         {
-            Name = BurseName.Bybit;
-            keys = [KeyEncryptor.ReadKeyFromFile("bybitapi"), KeyEncryptor.ReadKeyFromFile("bybitsecret")];
-            var filtered = _instrumentService.Instruments.Items.Where(x => x.Burse.Equals(Name));
-            Instruments.AddRange(filtered);
-
-            foreach (var inst in Instruments.Items)
-            {
-                inst.WhenAnyValue(x => x.Name.Id)
-                    .Skip(1)
-                    .Subscribe(_ => UpdateSubOnExpire(inst));
-            }
+            _keys = [KeyEncryptor.ReadKeyFromFile("bybitapi"), 
+                     KeyEncryptor.ReadKeyFromFile("bybitsecret")];
         }
 
         protected override void SetupClientsAsync()
         {
-            socket = new BybitSocketClient(options =>
+            _socket = new BybitSocketClient(options =>
             {
-                options.ApiCredentials = new(keys[0], keys[1]);
+                options.ApiCredentials = new(_keys[0], _keys[1]);
                 options.OutputOriginalData = true;
                 options.ReconnectInterval = TimeSpan.FromSeconds(5);
             });
-            rest = new BybitRestClient(options =>
+            _rest = new BybitRestClient(options =>
             {
-                options.ApiCredentials = new(keys[0], keys[1]);
+                options.ApiCredentials = new(_keys[0], _keys[1]);
                 options.OutputOriginalData = true;
             });
         }
@@ -65,40 +56,40 @@ namespace Server.Models.Burse
         {
             try
             {
-                if (socket is BybitSocketClient _socket)
+                if (_socket is BybitSocketClient socket)
                 {
                     foreach (var period in intervalMapping.Keys)
                     {
                         CallResult<UpdateSubscription> klineSub;
                         if (instrument.Name.Type.Equals("Spot"))
                         {
-                            klineSub = await _socket.V5SpotApi.SubscribeToKlineUpdatesAsync(instrument.Name.Id, period, (data) => KlineDataHandler(data, period, "Spot"));
+                            klineSub = await socket.V5SpotApi.SubscribeToKlineUpdatesAsync(instrument.Name.Id, period, (data) => KlineDataHandler(data, period, "Spot"));
                         }
                         else if (instrument.Name.Type.Equals("Futures"))
                         {
-                            klineSub = await _socket.V5LinearApi.SubscribeToKlineUpdatesAsync(instrument.Name.Id, period, (data) => KlineDataHandler(data, period, "Futures"));
+                            klineSub = await socket.V5LinearApi.SubscribeToKlineUpdatesAsync(instrument.Name.Id, period, (data) => KlineDataHandler(data, period, "Futures"));
                         }
                         else if (instrument.Name.Type.Equals("InverseFutures"))
                         {
-                            klineSub = await _socket.V5InverseApi.SubscribeToKlineUpdatesAsync(instrument.Name.Id, period, (data) => KlineDataHandler(data, period, "InverseFutures"));
+                            klineSub = await socket.V5InverseApi.SubscribeToKlineUpdatesAsync(instrument.Name.Id, period, (data) => KlineDataHandler(data, period, "InverseFutures"));
                         }
                     }
                     CallResult<UpdateSubscription> tradeSub;
                     if (instrument.Name.Type.Equals("Spot"))
                     {
-                        tradeSub = await _socket.V5SpotApi.SubscribeToTradeUpdatesAsync(instrument.Name.Id, (data) => TradeDataHandler(data, "Spot"));
+                        tradeSub = await socket.V5SpotApi.SubscribeToTradeUpdatesAsync(instrument.Name.Id, (data) => TradeDataHandler(data, "Spot"));
                         if (tradeSub.Success)
                             instrument.IsActive = true;
                     }
                     else if (instrument.Name.Type.Equals("Futures"))
                     {
-                        tradeSub = await _socket.V5LinearApi.SubscribeToTradeUpdatesAsync(instrument.Name.Id, (data) => TradeDataHandler(data, "Futures"));
+                        tradeSub = await socket.V5LinearApi.SubscribeToTradeUpdatesAsync(instrument.Name.Id, (data) => TradeDataHandler(data, "Futures"));
                         if (tradeSub.Success)
                             instrument.IsActive = true;
                     }
                     else if (instrument.Name.Type.Equals("InverseFutures"))
                     {
-                        tradeSub = await _socket.V5InverseApi.SubscribeToTradeUpdatesAsync(instrument.Name.Id, (data) => TradeDataHandler(data, "InverseFutures"));
+                        tradeSub = await socket.V5InverseApi.SubscribeToTradeUpdatesAsync(instrument.Name.Id, (data) => TradeDataHandler(data, "InverseFutures"));
                         if (tradeSub.Success)
                             instrument.IsActive = true;
                     }
@@ -106,7 +97,7 @@ namespace Server.Models.Burse
             }
             catch
             {
-
+                Disconnect();
             }
         }
         private async void KlineDataHandler(DataEvent<IEnumerable<BybitKlineUpdate>> data, KlineInterval period, string type)
@@ -125,7 +116,8 @@ namespace Server.Models.Burse
                             var time = dat.StartTime.Hour * 10000 + dat.StartTime.Minute * 100;
                             if (!kline.Time.Equals(time))
                             {
-                                await GetOrderBook(stock);
+                                if (period.Equals(KlineInterval.OneMinute))
+                                    await GetOrderBook(stock);
                                 kline.Day = dat.StartTime.Year * 10000 + dat.StartTime.Month * 100 + dat.StartTime.Day;
                                 kline.Time = dat.StartTime.Hour * 10000 + dat.StartTime.Minute * 100;
                             }
@@ -141,21 +133,21 @@ namespace Server.Models.Burse
         private async Task GetOrderBook(Instrument stock)
         {
             BybitOrderbook orderBook = null;
-            if (rest is BybitRestClient _rest)
+            if (_rest is BybitRestClient rest)
             {
                 if (stock.Name.Type.Equals("Spot"))
                 {
-                    var result = await _rest.V5Api.ExchangeData.GetOrderbookAsync(Category.Spot, stock.Name.Id, 500);
+                    var result = await rest.V5Api.ExchangeData.GetOrderbookAsync(Category.Spot, stock.Name.Id, 500);
                     orderBook = result.Data;
                 }
                 else if (stock.Name.Type.Equals("Futures"))
                 {
-                    var result = await _rest.V5Api.ExchangeData.GetOrderbookAsync(Category.Linear, stock.Name.Id, 500);
+                    var result = await rest.V5Api.ExchangeData.GetOrderbookAsync(Category.Linear, stock.Name.Id, 500);
                     orderBook = result.Data;
                 }
                 else if (stock.Name.Type.Equals("InverseFutures"))
                 {
-                    var result = await _rest.V5Api.ExchangeData.GetOrderbookAsync(Category.Inverse, stock.Name.Id, 500);
+                    var result = await rest.V5Api.ExchangeData.GetOrderbookAsync(Category.Inverse, stock.Name.Id, 500);
                     orderBook = result.Data;
                 }
 
@@ -201,7 +193,6 @@ namespace Server.Models.Burse
                 }
             }
         }
-
         private static CustomInterval ParseBybitInterval(KlineInterval interval)
         {
             return intervalMapping.TryGetValue(interval, out var result) ? result : CustomInterval.None;

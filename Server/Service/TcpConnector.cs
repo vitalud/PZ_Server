@@ -3,6 +3,7 @@ using Server.Service;
 using Server.Service.Abstract;
 using System.Net.Sockets;
 using System.Text;
+using System.Text.Json;
 
 namespace Server.Models
 {
@@ -24,9 +25,8 @@ namespace Server.Models
             _authListener.Start();
             _dataListener.Start();
             IsActive = true;
-            StartAsync();
-            StartDataListenerAsync();
-
+            Task.Run(StartAsync);
+            Task.Run(StartDataListenerAsync);
         }
         public override void ConnectorStop()
         {
@@ -70,14 +70,14 @@ namespace Server.Models
                     var responseMessage = Converter.CreateMessage("auth_success");
                     var responseBytes = Encoding.UTF8.GetBytes(responseMessage);
                     await networkStream.WriteAsync(responseBytes);
-                    Logger.AddLog(Logs, $"Авторизирован {data[0]}");
+                    Logger.AddLog(Logs, $"auth {data[0]}");
                 }
                 else
                 {
                     var responseMessage = Converter.CreateMessage("auth_failure");
                     var responseBytes = Encoding.UTF8.GetBytes(responseMessage);
                     await networkStream.WriteAsync(responseBytes);
-                    Logger.AddLog(Logs, $"Ошибка авторизации {data[0]}");
+                    Logger.AddLog(Logs, $"auth error {data[0]}");
                 }
             }
             finally
@@ -102,7 +102,7 @@ namespace Server.Models
                         if (client != null)
                         {
                             ActiveConnections++;
-                            Logger.AddLog(Logs, $"Запрос стратегий от {client.Data.Login}");
+                            Logger.AddLog(Logs, $"start data exchange with {client.Data.Login}");
                             client.Stream = networkStream;
                             client.IsActive = true;
                             await SendStrategies(client);
@@ -125,16 +125,16 @@ namespace Server.Models
                 var strategy = _strategies.StrategiesList.Items.FirstOrDefault(x => x.Code.Equals(clientStrategy.Code));
                 if (strategy != null)
                 {
-                    string jsonStrat = string.Empty;
+                    var jsonStrat = string.Empty;
                     lock (strategy)
                     {
                         strategy.TempLimit = clientStrategy.TradeLimit;
                         jsonStrat = Converter.CreateJson(strategy);
                         strategy.TempLimit = 0;
                     }
-                    byte[] json = Encoding.UTF8.GetBytes("strategy_" + jsonStrat);
+                    var json = Encoding.UTF8.GetBytes("strategy_" + jsonStrat);
                     await client.Stream.WriteAsync(json);
-                    Logger.AddLog(Logs, $"Отправил стратегию {strategy.Code} пользователю {client.Data.Login}");
+                    Logger.AddLog(Logs, $"send strategy {strategy.Code} to {client.Data.Login}");
                 }
             }
         }
@@ -174,12 +174,12 @@ namespace Server.Models
                     if (data[2].Equals("True"))
                     {
                         strat.ActivatedByClient = true;
-                        Logger.AddLog(Logs, $"Пользователь {client.Data.Login} включил стратегию {strat.Code}");
+                        Logger.AddLog(Logs, $"{client.Data.Login} turns on {strat.Code}");
                     }
                     else
                     {
                         strat.ActivatedByClient = false;
-                        Logger.AddLog(Logs, $"Пользователь {client.Data.Login} выключил стратегию {strat.Code}");
+                        Logger.AddLog(Logs, $"{client.Data.Login} turns off {strat.Code}");
                     }
                 }
             }

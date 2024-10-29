@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-             xmlns:vm="clr-namespace:Server.ViewModels"
+             xmlns:vm="clr-namespace:Server.ViewModels.Burse"
              xmlns:str="clr-namespace:ProjectZeroLib;assembly=ProjectZeroLib"
              xmlns:control="clr-namespace:Server.Views.UserControls"
              mc:Ignorable="d" 
@@ -17,9 +17,6 @@
             <control:BurseControl/>
         </DataTemplate>
         <DataTemplate DataType="{x:Type vm:BybitViewModel}">
-            <control:BurseControl/>
-        </DataTemplate>
-        <DataTemplate DataType="{x:Type vm:QuikViewModel}">
             <control:BurseControl/>
         </DataTemplate>
     </UserControl.Resources>
@@ -71,7 +68,7 @@
             </DockPanel>
             <Border Margin="5" BorderThickness="1" BorderBrush="LightGray">
                 <DockPanel>
-                    <UniformGrid DockPanel.Dock="Top" Rows="1" Columns="4">
+                    <UniformGrid DockPanel.Dock="Top" Rows="1" Columns="3">
                         <Button Command="{Binding ShowOkxCommand}"
                                 Style="{StaticResource LeftMenuButton}"
                                 Content="Okx"
@@ -83,10 +80,6 @@
                         <Button Command="{Binding ShowBinanceCommand}"
                                 Style="{StaticResource LeftMenuButton}" 
                                 Content="Binance"
-                                Height="20"/>
-                        <Button Command="{Binding ShowQuikCommand}"
-                                Style="{StaticResource LeftMenuButton}" 
-                                Content="Quik"
                                 Height="20"/>
                     </UniformGrid>
                     <ContentPresenter Content="{Binding CurrentBurseViewModel}"

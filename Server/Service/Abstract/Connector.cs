@@ -13,8 +13,8 @@ namespace Server.Service.Abstract
         protected readonly Strategies _strategies;
 
         protected readonly IPAddress address = Dns.GetHostAddresses(Dns.GetHostName()).First(x => x.AddressFamily.Equals(AddressFamily.InterNetwork));
-        protected readonly int dataPort = 44444;
-        protected readonly int authPort = 22222;
+        protected readonly int dataPort = 49107;
+        protected readonly int authPort = 29019;
 
         private bool _isActive;
         private int _activeConnections;
@@ -47,11 +47,6 @@ namespace Server.Service.Abstract
         }
 
         protected abstract void SendSignal(Signal signal);
-
-        /// <summary>
-        /// Обработчик сообщения от клиента.
-        /// </summary>
-        /// <param name="message"></param>
         protected abstract void MessageHandler(Client client, string[] message);
         protected bool CheckStrategy(Client client, string code)
         {

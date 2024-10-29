@@ -32,7 +32,7 @@ namespace Server.Service.Abstract
                     if (change.Reason.Equals(ListChangeReason.Add))
                     {
                         var item = change.Item.Current;
-                        Logger.AddLog(_clientLogs, $"Добавлен клиент {item.Data.Login}");
+                        Logger.AddLog(_clientLogs, $"added client {item.Data.Login}");
                         item.WhenAnyValue(x => x.Data.Payment)
                             .Subscribe(payment => OnPaymentChanged(item, payment));
                         item.WhenAnyValue(x => x.Data.Deposit)

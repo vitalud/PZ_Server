@@ -4,7 +4,7 @@ using ProjectZeroLib;
 using ProjectZeroLib.Enums;
 using ProjectZeroLib.Instruments;
 using ReactiveUI;
-using System.Collections.ObjectModel;
+using System.Reactive.Linq;
 
 namespace Server.Service.Abstract
 {
@@ -12,73 +12,73 @@ namespace Server.Service.Abstract
     {
         protected readonly InstrumentService _instrumentService;
 
-        protected BaseSocketClient socket;
-        protected BaseRestClient rest;
-        protected string[] keys;
+        protected BaseSocketClient _socket;
+        protected BaseRestClient _rest;
+        protected string[] _keys;
 
-        protected List<int> subToUpdateIds;
-
-        public SourceList<Instrument> Instruments { get; private set; }
-
-        public BurseModel(InstrumentService instrumentService)
-        {
-            _instrumentService = instrumentService;
-            Instruments = new SourceList<Instrument>();
-
-        }
+        protected readonly List<int> subToUpdateIds = [];
 
         private bool _isActive;
+        private BurseName _name;
         public bool IsActive
         {
             get => _isActive;
             set => this.RaiseAndSetIfChanged(ref _isActive, value);
         }
-
-        private BurseName _name;
         public BurseName Name
         {
             get => _name;
             set => this.RaiseAndSetIfChanged(ref _name, value);
         }
 
-        private ObservableCollection<Signal> _generatedSignals;
-        public ObservableCollection<Signal> GeneratedSignals
+        private readonly SourceList<Instrument> _instruments = new();
+        public SourceList<Instrument> Instruments => _instruments;
+        public BurseModel(InstrumentService instrumentService, BurseName name)
         {
-            get => _generatedSignals;
-            set => this.RaiseAndSetIfChanged(ref _generatedSignals, value);
+            _instrumentService = instrumentService;
+            _name = name;
+
+            GetSortedInstruments();
         }
 
         public async void Connect()
         {
             SetupClientsAsync();
-            if (!Name.Equals(BurseName.Quik))
-            {
-                subToUpdateIds = [];
-                await GetSubscriptions();
-            }
+            await GetSubscriptions();
             IsActive = true;
         }
         public async void Disconnect()
         {
-            if (socket != null)
+            if (_socket != null && _rest != null)
             {
-                await socket.UnsubscribeAllAsync();
-                socket.Dispose();
-                rest.Dispose();
+                await _socket.UnsubscribeAllAsync();
+                _socket.Dispose();
+                _rest.Dispose();
                 subToUpdateIds.Clear();
-                Instruments.Clear();
+                IsActive = false;
+                foreach (var item in Instruments.Items)
+                {
+                    item.IsActive = false;
+                }
             }
-            IsActive = false;
         }
-
-        protected async void UpdateSubOnExpire(Instrument inst)
+        private void GetSortedInstruments()
         {
-            IsActive = false;
+            var filtered = _instrumentService.Instruments.Items.Where(x => x.Burse.Equals(Name));
+            Instruments.AddRange(filtered);
+
+            foreach (var instrument in Instruments.Items)
+            {
+                instrument.Name.WhenAnyValue(x => x.Expiration)
+                    .Skip(1)
+                    .Subscribe(async _ => await UpdateSubOnExpire(instrument));
+            }
+        }
+        protected async Task UpdateSubOnExpire(Instrument inst)
+        {
             inst.IsActive = false;
             await Subscribe(inst);
-            IsActive = true;
         }
-
         protected abstract void SetupClientsAsync();
         protected abstract Task GetSubscriptions();
         protected abstract Task Subscribe(Instrument instrument);

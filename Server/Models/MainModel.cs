@@ -49,8 +49,7 @@ namespace Server.Models
 
         public void Test()
         {
-            //SaveLogs();
-            //_burses.Test();
+            _burses.Test();
         }
     }
 }

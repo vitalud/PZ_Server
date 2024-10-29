@@ -1,6 +1,7 @@
 ﻿using ProjectZeroLib.Instruments;
 using ReactiveUI;
 using Server.Service.Abstract;
+using Server.ViewModels.Burse;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Reactive;
@@ -12,12 +13,10 @@ namespace Server.ViewModels
         private readonly BurseViewModel _okxViewModel;
         private readonly BurseViewModel _binanceViewModel;
         private readonly BurseViewModel _bybitViewModel;
-        private readonly BurseViewModel _quikViewModel;
 
         public BurseViewModel OkxViewModel => _okxViewModel;
         public BurseViewModel BinanceViewModel => _binanceViewModel;
         public BurseViewModel BybitViewModel => _bybitViewModel;
-        public BurseViewModel QuikViewModel => _quikViewModel;
 
         public ObservableCollection<BurseViewModel> BurseViewModels { get; set; } = [];
 
@@ -29,7 +28,6 @@ namespace Server.ViewModels
         public ReactiveCommand<Unit, ReactiveObject> ShowOkxCommand { get; }
         public ReactiveCommand<Unit, ReactiveObject> ShowBinanceCommand { get; }
         public ReactiveCommand<Unit, ReactiveObject> ShowBybitCommand { get; }
-        public ReactiveCommand<Unit, ReactiveObject> ShowQuikCommand { get; }
 
         private ReactiveObject _currentBurseViewModel;
         public ReactiveObject CurrentBurseViewModel
@@ -38,17 +36,15 @@ namespace Server.ViewModels
             set => this.RaiseAndSetIfChanged(ref _currentBurseViewModel, value);
         }
 
-        public BursesViewModel(OkxViewModel okxViewModel, BinanceViewModel binanceViewModel, BybitViewModel bybitViewModel, QuikViewModel quikViewModel)
+        public BursesViewModel(OkxViewModel okxViewModel, BinanceViewModel binanceViewModel, BybitViewModel bybitViewModel)
         {
             _okxViewModel = okxViewModel;
             _binanceViewModel = binanceViewModel;
             _bybitViewModel = bybitViewModel;
-            _quikViewModel = quikViewModel;
 
             BurseViewModels.Add(_okxViewModel);
             BurseViewModels.Add(_binanceViewModel);
             BurseViewModels.Add(_bybitViewModel);
-            BurseViewModels.Add(_quikViewModel);
 
             ConnectAllCommand = ReactiveCommand.Create(() =>
             {
@@ -66,7 +62,6 @@ namespace Server.ViewModels
             ShowOkxCommand = ReactiveCommand.Create(() => CurrentBurseViewModel = _okxViewModel);
             ShowBinanceCommand = ReactiveCommand.Create(() => CurrentBurseViewModel = _binanceViewModel);
             ShowBybitCommand = ReactiveCommand.Create(() => CurrentBurseViewModel = _bybitViewModel);
-            ShowQuikCommand = ReactiveCommand.Create(() => CurrentBurseViewModel = _quikViewModel);
         }
     }
 }

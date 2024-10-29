@@ -1,10 +1,12 @@
 ﻿using Autofac;
 using ProjectZeroLib;
+using ProjectZeroLib.Enums;
 using Server.Models;
 using Server.Models.Burse;
 using Server.Service.Abstract;
 using Server.Service.Bot;
 using Server.ViewModels;
+using Server.ViewModels.Burse;
 using Server.Views.Windows;
 using System.IO;
 using System.Windows;
@@ -42,12 +44,15 @@ namespace Server
             builder.RegisterType<ServerModel>().SingleInstance();
             builder.RegisterType<ServerViewModel>().SingleInstance();
 
-            builder.RegisterType<OkxModel>().AsSelf().SingleInstance();
+            builder.RegisterType<OkxModel>().AsSelf().SingleInstance().WithParameter("name", BurseName.Okx);
             builder.RegisterType<OkxViewModel>().AsSelf().SingleInstance();
-            builder.RegisterType<BinanceModel>().AsSelf().SingleInstance();
+
+            builder.RegisterType<BinanceModel>().AsSelf().SingleInstance().WithParameter("name", BurseName.Binance);
             builder.RegisterType<BinanceViewModel>().AsSelf().SingleInstance();
-            builder.RegisterType<BybitModel>().AsSelf().SingleInstance();
+
+            builder.RegisterType<BybitModel>().AsSelf().SingleInstance().WithParameter("name", BurseName.Bybit);
             builder.RegisterType<BybitViewModel>().AsSelf().SingleInstance();
+
             builder.RegisterType<QuikModel>().AsSelf().SingleInstance();
             builder.RegisterType<QuikViewModel>().AsSelf().SingleInstance();
 

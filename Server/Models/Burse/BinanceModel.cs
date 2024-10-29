@@ -5,11 +5,9 @@ using Binance.Net.Objects.Models.Spot.Socket;
 using CryptoExchange.Net.Authentication;
 using CryptoExchange.Net.Objects;
 using CryptoExchange.Net.Objects.Sockets;
-using DynamicData;
 using ProjectZeroLib;
 using ProjectZeroLib.Enums;
 using ProjectZeroLib.Instruments;
-using ReactiveUI;
 using Server.Service.Abstract;
 using System.Reactive.Linq;
 using CustomInterval = ProjectZeroLib.Enums.KlineInterval;
@@ -29,31 +27,22 @@ namespace Server.Models.Burse
             { KlineInterval.OneDay, CustomInterval.OneDay }
         };
 
-        public BinanceModel(InstrumentService instrumentService) : base(instrumentService)
+        public BinanceModel(InstrumentService instrumentService, BurseName name) : base(instrumentService, name)
         {
-            Name = BurseName.Binance;
-            keys = [KeyEncryptor.ReadKeyFromFile("binanceapi"), KeyEncryptor.ReadKeyFromFile("binancesecret")];
-            var filtered = _instrumentService.Instruments.Items.Where(x => x.Burse.Equals(Name));
-            Instruments.AddRange(filtered);
-
-            foreach (var inst in Instruments.Items)
-            {
-                inst.WhenAnyValue(x => x.Name.Id)
-                    .Skip(1)
-                    .Subscribe(_ => UpdateSubOnExpire(inst));
-            }
+            _keys = [KeyEncryptor.ReadKeyFromFile("binanceapi"), 
+                     KeyEncryptor.ReadKeyFromFile("binancesecret")];
         }
 
         protected override void SetupClientsAsync()
         {
-            socket = new BinanceSocketClient(options =>
+            _socket = new BinanceSocketClient(options =>
             {
-                options.ApiCredentials = new ApiCredentials(keys[0], keys[1]);
+                options.ApiCredentials = new ApiCredentials(_keys[0], _keys[1]);
                 options.OutputOriginalData = true;
             });
-            rest = new BinanceRestClient(options =>
+            _rest = new BinanceRestClient(options =>
             {
-                options.ApiCredentials = new ApiCredentials(keys[0], keys[1]);
+                options.ApiCredentials = new ApiCredentials(_keys[0], _keys[1]);
                 options.OutputOriginalData = true;
             });
         }
@@ -66,18 +55,18 @@ namespace Server.Models.Burse
         {
             try
             {
-                if (socket is BinanceSocketClient _socket)
+                if (_socket is BinanceSocketClient socket)
                 {
                     foreach (var period in intervalMapping.Keys)
                     {
                         CallResult<UpdateSubscription> klineSub;
                         if (instrument.Name.Type.Equals("Spot"))
                         {
-                            klineSub = await _socket.SpotApi.ExchangeData.SubscribeToKlineUpdatesAsync(instrument.Name.Id, period, (data) => KlineDataHandler(data, period, "Spot"));
+                            klineSub = await socket.SpotApi.ExchangeData.SubscribeToKlineUpdatesAsync(instrument.Name.Id, period, (data) => KlineDataHandler(data, period, "Spot"));
                         }
                         else if (instrument.Name.Type.Equals("UsdFutures"))
                         {
-                            klineSub = await _socket.UsdFuturesApi.SubscribeToKlineUpdatesAsync(instrument.Name.Id, period, (data) => KlineDataHandler(data, period, "UsdFutures"));
+                            klineSub = await socket.UsdFuturesApi.ExchangeData.SubscribeToKlineUpdatesAsync(instrument.Name.Id, period, (data) => KlineDataHandler(data, period, "UsdFutures"));
                             if (klineSub.Success)
                             {
                                 if (instrument.Name.Id.Contains('_')) subToUpdateIds.Add(klineSub.Data.Id);
@@ -85,7 +74,7 @@ namespace Server.Models.Burse
                         }
                         else if (instrument.Name.Type.Equals("CoinFutures"))
                         {
-                            klineSub = await _socket.CoinFuturesApi.SubscribeToKlineUpdatesAsync(instrument.Name.Id, period, (data) => KlineDataHandler(data, period, "CoinFutures"));
+                            klineSub = await socket.CoinFuturesApi.SubscribeToKlineUpdatesAsync(instrument.Name.Id, period, (data) => KlineDataHandler(data, period, "CoinFutures"));
                             if (klineSub.Success)
                             {
                                 if (instrument.Name.Id.Contains('_')) subToUpdateIds.Add(klineSub.Data.Id);
@@ -95,28 +84,28 @@ namespace Server.Models.Burse
                     CallResult<UpdateSubscription> tradeSub;
                     if (instrument.Name.Type.Equals("Spot"))
                     {
-                        tradeSub = await _socket.SpotApi.ExchangeData.SubscribeToTradeUpdatesAsync(instrument.Name.Id, (data) => TradeDataHandler(data, "Spot"));
+                        tradeSub = await socket.SpotApi.ExchangeData.SubscribeToTradeUpdatesAsync(instrument.Name.Id, (data) => TradeDataHandler(data, "Spot"));
                         if (tradeSub.Success)
-                            IsActive = true;
+                            instrument.IsActive = true;
                     }
                     else if (instrument.Name.Type.Equals("UsdFutures"))
                     {
-                        tradeSub = await _socket.SpotApi.ExchangeData.SubscribeToTradeUpdatesAsync(instrument.Name.Id, (data) => TradeDataHandler(data, "UsdFutures"));
+                        tradeSub = await socket.SpotApi.ExchangeData.SubscribeToTradeUpdatesAsync(instrument.Name.Id, (data) => TradeDataHandler(data, "UsdFutures"));
                         if (tradeSub.Success)
-                            IsActive = true;
+                            instrument.IsActive = true;
                     }
                     else if (instrument.Name.Type.Equals("CoinFutures"))
                     {
-                        tradeSub = await _socket.SpotApi.ExchangeData.SubscribeToTradeUpdatesAsync(instrument.Name.Id, (data) => TradeDataHandler(data, "CoinFutures"));
+                        tradeSub = await socket.SpotApi.ExchangeData.SubscribeToTradeUpdatesAsync(instrument.Name.Id, (data) => TradeDataHandler(data, "CoinFutures"));
                         if (tradeSub.Success)
-                            IsActive = true;
+                            instrument.IsActive = true;
                     }
 
                 }
             }
             catch
             {
-
+                Disconnect();
             }
         }
         private async void KlineDataHandler(DataEvent<IBinanceStreamKlineData> data, KlineInterval period, string type)
@@ -132,7 +121,8 @@ namespace Server.Models.Burse
                         stock.LastUpdate = data.Timestamp;
                         if (data.Data.Data.Final)
                         {
-                            await GetOrderBook(stock);
+                            if (period.Equals(KlineInterval.OneMinute))
+                                await GetOrderBook(stock);
                             kline.Day = data.Data.Data.OpenTime.Year * 10000 + data.Data.Data.OpenTime.Month * 100 + data.Data.Data.OpenTime.Day;
                             kline.Time = data.Data.Data.OpenTime.Hour * 10000 + data.Data.Data.OpenTime.Minute * 100;
                         }
@@ -147,21 +137,21 @@ namespace Server.Models.Burse
         private async Task GetOrderBook(Instrument stock)
         {
             BinanceOrderBook? orderBook = null;
-            if (rest is BinanceRestClient _rest)
+            if (_rest is BinanceRestClient rest)
             {
                 if (stock.Name.Type.Equals("Spot"))
                 {
-                    var result = await _rest.SpotApi.ExchangeData.GetOrderBookAsync(stock.Name.Id, 500);
+                    var result = await rest.SpotApi.ExchangeData.GetOrderBookAsync(stock.Name.Id, 500);
                     orderBook = result.Data;
                 }
                 else if (stock.Name.Type.Equals("UsdFutures"))
                 {
-                    var result = await _rest.UsdFuturesApi.ExchangeData.GetOrderBookAsync(stock.Name.Id, 500);
+                    var result = await rest.UsdFuturesApi.ExchangeData.GetOrderBookAsync(stock.Name.Id, 500);
                     orderBook = result.Data;
                 }
                 else if (stock.Name.Type.Equals("CoinFutures"))
                 {
-                    var result = await _rest.CoinFuturesApi.ExchangeData.GetOrderBookAsync(stock.Name.Id, 500);
+                    var result = await rest.CoinFuturesApi.ExchangeData.GetOrderBookAsync(stock.Name.Id, 500);
                     orderBook = result.Data;
                 }
 
@@ -204,7 +194,6 @@ namespace Server.Models.Burse
                 }
             }
         }
-
         private static CustomInterval ParseBinanceInterval(KlineInterval interval)
         {
             return intervalMapping.TryGetValue(interval, out var result) ? result : CustomInterval.None;

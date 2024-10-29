@@ -1,5 +1,4 @@
 ﻿using CryptoExchange.Net.Objects.Sockets;
-using DynamicData;
 using OKX.Net.Clients;
 using OKX.Net.Enums;
 using OKX.Net.Objects;
@@ -7,7 +6,6 @@ using OKX.Net.Objects.Market;
 using ProjectZeroLib;
 using ProjectZeroLib.Enums;
 using ProjectZeroLib.Instruments;
-using ReactiveUI;
 using Server.Service.Abstract;
 using System.Reactive.Linq;
 using CustomInterval = ProjectZeroLib.Enums.KlineInterval;
@@ -27,31 +25,23 @@ namespace Server.Models.Burse
             { KlineInterval.OneDay, CustomInterval.OneDay }
         };
 
-        public OkxModel(InstrumentService instrumentService) : base(instrumentService)
+        public OkxModel(InstrumentService instrumentService, BurseName name) : base(instrumentService, name)
         {
-            Name = BurseName.Okx;
-            keys = [KeyEncryptor.ReadKeyFromFile("okxapi"), KeyEncryptor.ReadKeyFromFile("okxsecret"), KeyEncryptor.ReadKeyFromFile("okxword")];
-            var filtered = _instrumentService.Instruments.Items.Where(x => x.Burse.Equals(Name));
-            Instruments.AddRange(filtered);
-
-            foreach (var inst in Instruments.Items)
-            {
-                inst.WhenAnyValue(x => x.Name.Id)
-                    .Skip(1)
-                    .Subscribe(_ => UpdateSubOnExpire(inst));
-            }
+            _keys = [KeyEncryptor.ReadKeyFromFile("okxapi"), 
+                     KeyEncryptor.ReadKeyFromFile("okxsecret"), 
+                     KeyEncryptor.ReadKeyFromFile("okxword")];
         }
 
         protected override void SetupClientsAsync()
         {
-            socket = new OKXSocketClient(options =>
+            _socket = new OKXSocketClient(options =>
             {
-                options.ApiCredentials = new OKXApiCredentials(keys[0], keys[1], keys[2]);
+                options.ApiCredentials = new OKXApiCredentials(_keys[0], _keys[1], _keys[2]);
                 options.OutputOriginalData = true;
             });
-            rest = new OKXRestClient(options =>
+            _rest = new OKXRestClient(options =>
             {
-                options.ApiCredentials = new OKXApiCredentials(keys[0], keys[1], keys[2]);
+                options.ApiCredentials = new OKXApiCredentials(_keys[0], _keys[1], _keys[2]);
                 options.OutputOriginalData = true;
             });
         }
@@ -61,12 +51,41 @@ namespace Server.Models.Burse
                 await Subscribe(inst);
             await PrepareIndicators();
         }
-
+        protected override async Task Subscribe(Instrument instrument)
+        {
+            try
+            {
+                var name = instrument.Name;
+                if (_socket is OKXSocketClient socket)
+                {
+                    foreach (var period in intervalMapping.Keys)
+                    {
+                        var klineSub = await socket.UnifiedApi.ExchangeData.SubscribeToKlineUpdatesAsync(name.Id, period, (data) => KlineDataHandler(data, period));
+                        if (klineSub.Success)
+                        {
+                            if (name.Type.Equals("Futures"))
+                                subToUpdateIds.Add(klineSub.Data.Id);
+                        }
+                    }
+                    var tradeSub = await socket.UnifiedApi.ExchangeData.SubscribeToTradeUpdatesAsync(name.Id, TradeDataHandler);
+                    if (tradeSub.Success)
+                    {
+                        if (name.Type.Equals("Futures"))
+                            subToUpdateIds.Add(tradeSub.Data.Id);
+                        instrument.IsActive = true;
+                    }
+                }
+            }
+            catch
+            {
+                Disconnect();
+            }
+        }
         private async Task PrepareIndicators()
         {
-            if (rest is OKXRestClient _rest)
+            if (_rest is OKXRestClient rest)
             {
-                var last = await _rest.UnifiedApi.ExchangeData.GetKlineHistoryAsync("BTC-USDT", KlineInterval.OneMinute, limit: 60);
+                var last = await rest.UnifiedApi.ExchangeData.GetKlineHistoryAsync("BTC-USDT", KlineInterval.OneMinute, limit: 60);
                 if (last.Success)
                 {
                     var stock = Instruments.Items.FirstOrDefault(x => x.Name.Id.Equals("BTC-USDT")
@@ -79,38 +98,6 @@ namespace Server.Models.Burse
                 }
             }
         }
-
-        protected override async Task Subscribe(Instrument instrument)
-        {
-            try
-            {
-                var name = instrument.Name;
-                if (socket is OKXSocketClient _socket)
-                {
-                    foreach (var period in intervalMapping.Keys)
-                    {
-                        var klineSub = await _socket.UnifiedApi.ExchangeData.SubscribeToKlineUpdatesAsync(name.Id, period, (data) => KlineDataHandler(data, period));
-                        if (klineSub.Success)
-                        {
-                            if (name.Type.Equals("Futures"))
-                                subToUpdateIds.Add(klineSub.Data.Id);
-                        }
-                    }
-                    var tradeSub = await _socket.UnifiedApi.ExchangeData.SubscribeToTradeUpdatesAsync(name.Id, TradeDataHandler);
-                    if (tradeSub.Success)
-                    {
-                        if (name.Type.Equals("Futures"))
-                            subToUpdateIds.Add(tradeSub.Data.Id);
-                        instrument.IsActive = true;
-                    }
-                }
-            }
-            catch
-            {
-
-            }
-        }
-
         private async void KlineDataHandler(DataEvent<OKXKline> data, KlineInterval period)
         {
             if (data != null)
@@ -125,9 +112,10 @@ namespace Server.Models.Burse
                         var time = data.Data.Time.Hour * 10000 + data.Data.Time.Minute * 100;
                         if (!kline.Time.Equals(time))
                         {
-                            await GetOrderBook(stock);
-                            kline.Day = data.Data.Time.Year * 10000 + data.Data.Time.Month * 100 + data.Data.Time.Day;
+                            if (period.Equals(KlineInterval.OneMinute))
+                                await GetOrderBook(stock);
                             kline.Time = data.Data.Time.Hour * 10000 + data.Data.Time.Minute * 100;
+                            kline.Day = data.Data.Time.Year * 10000 + data.Data.Time.Month * 100 + data.Data.Time.Day;
                         }
                         kline.Open = data.Data.OpenPrice;
                         kline.High = data.Data.HighPrice;
@@ -137,12 +125,11 @@ namespace Server.Models.Burse
                 }
             }
         }
-
         private async Task GetOrderBook(Instrument stock)
         {
-            if (rest is OKXRestClient _rest)
+            if (_rest is OKXRestClient rest)
             {
-                var orderBook = await _rest.UnifiedApi.ExchangeData.GetOrderBookAsync(stock.Name.Id, 400);
+                var orderBook = await rest.UnifiedApi.ExchangeData.GetOrderBookAsync(stock.Name.Id, 400);
                 if (orderBook.Data != null)
                 {
                     var asks = orderBook.Data.Asks;
@@ -176,7 +163,6 @@ namespace Server.Models.Burse
                 }
             }
         }
-
         private void TradeDataHandler(DataEvent<OKXTrade> data)
         {
             if (data != null)
@@ -189,7 +175,6 @@ namespace Server.Models.Burse
                 }
             }
         }
-
         private static CustomInterval ParseOkxInterval(KlineInterval interval)
         {
             return intervalMapping.TryGetValue(interval, out var result) ? result : CustomInterval.None;

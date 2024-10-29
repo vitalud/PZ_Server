@@ -16,7 +16,6 @@ namespace Server.Service.Abstract
 
         private readonly ObservableAsPropertyHelper<bool> _isActive;
         public bool IsActive => _isActive.Value;
-
         public BurseName Name => _burseModel.Name;
         public ReactiveCommand<Unit, Unit> ConnectCommand { get; }
 
