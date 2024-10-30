@@ -93,7 +93,7 @@ namespace Server.Models.Burse
                     && x.Burse.Equals(BurseName.Okx));
                     if (stock != null)
                     {
-                        foreach (var kline in last.Data) stock.Other.Last.Add(kline.ClosePrice);
+                        foreach (var kline in last.Data) stock.Other.Last60Close.Add(kline.ClosePrice);
                     }
                 }
             }

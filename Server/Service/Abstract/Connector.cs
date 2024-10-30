@@ -44,8 +44,47 @@ namespace Server.Service.Abstract
                     .Skip(1)
                     .Subscribe(SendSignal);
             }
+
+            _clientDataBase.Clients.Connect()
+                .Subscribe(OnClientsCountChanged);
         }
 
+        private void OnClientsCountChanged(IChangeSet<Client> changes)
+        {
+            foreach (var change in changes)
+            {
+                if (change.Reason.Equals(ListChangeReason.Add))
+                {
+                    var item = change.Item.Current;
+                    CreateClientSubscriptions(item);
+                }
+                if (change.Reason.Equals(ListChangeReason.AddRange))
+                {
+                    foreach (var item in change.Range)
+                    {
+                        CreateClientSubscriptions(item);
+                    }
+                }
+            }
+        }
+        private void CreateClientSubscriptions(Client client)
+        {
+            client.Data.Strategies.Connect()
+                .Subscribe(changes => OnStrategiesCountChanged(changes, client));
+        }
+        private void OnStrategiesCountChanged(IChangeSet<ShortStrategyInfo> changes, Client client)
+        {
+            foreach (var change in changes)
+            {
+                if (change.Reason.Equals(ListChangeReason.Add))
+                {
+                    var item = change.Item.Current;
+                    SendStrategy(item, client);
+                }
+            }
+        }
+
+        protected abstract void SendStrategy(ShortStrategyInfo data, Client client);
         protected abstract void SendSignal(Signal signal);
         protected abstract void MessageHandler(Client client, string[] message);
         protected bool CheckStrategy(Client client, string code)
@@ -64,11 +103,8 @@ namespace Server.Service.Abstract
         }
         public abstract void ConnectorStart();
         public abstract void ConnectorStop();
-        public void ClearLogs()
-        {
-            _logs.Clear();
-        }
     }
+
     public class DataReceivedEventArgs(string data) : EventArgs
     {
         public string ReceivedData { get; } = data;

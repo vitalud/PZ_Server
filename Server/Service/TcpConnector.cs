@@ -3,7 +3,6 @@ using Server.Service;
 using Server.Service.Abstract;
 using System.Net.Sockets;
 using System.Text;
-using System.Text.Json;
 
 namespace Server.Models
 {
@@ -118,6 +117,28 @@ namespace Server.Models
                 _connectionSemaphore.Release();
             }
         }
+
+        protected override async void SendStrategy(ShortStrategyInfo data, Client client)
+        {
+            if (client.IsActive)
+            {
+                var strategy = _strategies.StrategiesList.Items.FirstOrDefault(x => x.Code.Equals(data.Code));
+                if (strategy != null)
+                {
+                    var jsonStrat = string.Empty;
+                    lock (strategy)
+                    {
+                        strategy.TempLimit = data.TradeLimit;
+                        jsonStrat = Converter.CreateJson(strategy);
+                        strategy.TempLimit = 0;
+                    }
+                    var json = Encoding.UTF8.GetBytes("strategy_" + jsonStrat);
+                    await client.Stream.WriteAsync(json);
+                    Logger.AddLog(Logs, $"send strategy {strategy.Code} to {client.Data.Login}");
+                }
+            }
+        }
+
         private async Task SendStrategies(Client client)
         {
             foreach (var clientStrategy in client.Data.Strategies.Items)
@@ -141,7 +162,7 @@ namespace Server.Models
 
         protected override void SendSignal(Signal signal)
         {
-            if (IsActive)
+            if (IsActive && signal.Status != "ping")
             {
                 var message = Converter.CreateJson(signal);
                 byte[] data = Encoding.UTF8.GetBytes("signal_" + message);

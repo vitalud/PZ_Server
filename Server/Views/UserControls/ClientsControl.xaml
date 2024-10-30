@@ -29,8 +29,6 @@
                                         IsReadOnly="True" Width="*"/>
                 <DataGridTextColumn Header="Подключение" Binding="{Binding IsActive}" CanUserResize="False"
                                         IsReadOnly="True" Width="*"/>
-                <DataGridTextColumn Header="Кол-во подписок" Binding="{Binding Data.Strategies.Count}" CanUserResize="False"
-                                        IsReadOnly="True" Width="*"/>
             </DataGrid.Columns>
             <DataGrid.RowDetailsTemplate>
                 <DataTemplate>

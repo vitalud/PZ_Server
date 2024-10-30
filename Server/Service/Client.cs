@@ -120,11 +120,12 @@ namespace Server.Service
         public int Price { get; set; }
         public int Deposit { get; set; }
     }
-    public class ShortStrategyInfo(string code, int tradeLimit) : ReactiveObject
+    public class ShortStrategyInfo(string burse, string code, int tradeLimit, int payment) : ReactiveObject
     {
+        public string Burse { get; set; } = burse;
         public string Code { get; set; } = code;
         public int TradeLimit { get; set; } = tradeLimit;
         public bool ActivatedByClient { get; set; } = false;
-        public int Payment { get; set; }
+        public int Payment { get; set; } = payment;
     }
 }

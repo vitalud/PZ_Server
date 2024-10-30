@@ -1,9 +1,11 @@
 ﻿using ClosedXML.Excel;
 using DynamicData;
 using ProjectZeroLib;
+using ReactiveUI;
 using Server.Service;
 using Server.Service.Abstract;
 using Server.Service.Enums;
+using System.Reactive.Linq;
 
 namespace Server.Models
 {
@@ -13,7 +15,9 @@ namespace Server.Models
         public ExcelClientsModel()
         {
             _workbook = new XLWorkbook(_path);
+
             GetClients();
+            CreateSubscriptions();
         }
 
         protected override void GetClients()
@@ -21,7 +25,7 @@ namespace Server.Models
             foreach (var ws in _workbook.Worksheets)
             {
                 if (ws.Name.Equals("Main")) GetClientBase(ws);
-                else UpdateClientBase(ws);
+                else GetStrategyData(ws);
             }
         }
         private void GetClientBase(IXLWorksheet ws)
@@ -46,7 +50,7 @@ namespace Server.Models
                 });
             }
         }
-        private void UpdateClientBase(IXLWorksheet ws)
+        private void GetStrategyData(IXLWorksheet ws)
         {
             for (int i = 2; i <= ws.RowsUsed().Count() + 1; i++)
             {
@@ -60,32 +64,55 @@ namespace Server.Models
                     foreach (var cell in cells)
                     {
                         var type = cell.Value.Type;
-                        if (type != XLDataType.Text)
+                        var value = cell.Value;
+                        if (cell.Address.ColumnLetter != "A")
                         {
-                            var address = cell.Address;
-                            var code = ws.Row(1).Cell(address.ColumnNumber).Value.ToString();
-                            var limit = (int)cell.Value.GetNumber();
-                            client.Data.Strategies.Add(new(code, limit));
+                            if (type.Equals(XLDataType.Text))
+                            {
+                                var address = cell.Address;
+                                var code = ws.Row(1).Cell(address.ColumnNumber).Value.ToString();
+                                var data = cell.Value.GetText().Split('_');
+                                var limit = int.Parse(data[0]);
+                                var payment = int.Parse(data[1]);
+                                client.Data.Strategies.Add(new(ws.Name, code, limit, payment));
+                            }
                         }
                     }
                 }
             }
         }
+
+        private void CreateSubscriptions()
+        {
+            Clients.Connect()
+                .Subscribe(OnClientsCountChanged);
+        }
+        private void CreateClientSubscriptions(Client client)
+        {
+            client.WhenAnyValue(x => x.Data.Deposit)
+                .Skip(1)
+                .Subscribe(deposit => OnDepositChanged(client, deposit));
+            client.WhenAnyValue(x => x.Data.Payment)
+                .Skip(1)
+                .Subscribe(payment => OnPaymentChanged(client, payment));
+            client.Data.Strategies.Connect()
+                .Subscribe(changes => OnStrategiesCountChanged(changes, client));
+        }
+
         protected override void OnDepositChanged(Client client, int deposit)
         {
-            var main = _workbook.Worksheet(1);
-            var lastRow = main.LastRowUsed().RangeAddress.FirstAddress.RowNumber;
-            if (FindClient(client, main, lastRow, out int index))
+            lock (_locker)
             {
-                lock (main)
+                var main = _workbook.Worksheet(1);
+                var lastRow = main.LastRowUsed().RangeAddress.FirstAddress.RowNumber;
+
+                var index = FindClientIndex(client.Telegram.Id);
+                if (index > 0)
                 {
                     main.Row(index).Cell(5).Value = client.Data.Deposit;
                     _workbook.Save();
                 }
-            }
-            else
-            {
-                lock (main)
+                else
                 {
                     main.Row(lastRow + 1).Cell(1).Value = client.Data.Login;
                     main.Row(lastRow + 1).Cell(2).Value = client.Data.Password;
@@ -98,98 +125,154 @@ namespace Server.Models
                 }
             }
         }
-        protected override void OnPaymentChanged(Client client, int deposit)
+
+        protected override void OnPaymentChanged(Client client, int payment)
         {
-            var main = _workbook.Worksheet(1);
-            var lastRow = main.LastRowUsed().RangeAddress.FirstAddress.RowNumber;
-            if (FindClient(client, main, lastRow, out int index))
+            lock (_locker)
             {
-                lock (main)
+                var main = _workbook.Worksheet(1);
+                var lastRow = main.LastRowUsed().RangeAddress.FirstAddress.RowNumber;
+
+                var index = FindClientIndex(client.Telegram.Id);
+                if (index > 0)
                 {
                     main.Row(index).Cell(6).Value = client.Data.Payment;
                     _workbook.Save();
                 }
             }
         }
-        protected override void OnStrategiesChanged(Client client, int count, int oldCount)
+
+        private IXLWorksheet GetBurseSheet(string name)
         {
+            IXLWorksheet sheet = null;
+            if (name.Equals("Okx")) sheet = _workbook.Worksheet(2);
+            else if (name.Equals("Binance")) sheet = _workbook.Worksheet(3);
+            else if (name.Equals("Bybit")) sheet = _workbook.Worksheet(4);
+            else if (name.Equals("Quik")) sheet = _workbook.Worksheet(5);
+            return sheet;
+        }
+
+
+        protected override void OnClientsCountChanged(IChangeSet<Client> changes)
+        {
+            lock (_locker)
+            {
+                foreach (var change in changes)
+                {
+                    if (change.Reason.Equals(ListChangeReason.Add))
+                    {
+                        var item = change.Item.Current;
+                        Logger.AddLog(_clientLogs, $"added client {item.Data.Login}");
+                        CreateClientSubscriptions(item);
+                    }
+                    if (change.Reason.Equals(ListChangeReason.AddRange))
+                    {
+                        foreach (var item in change.Range)
+                        {
+                            Logger.AddLog(_clientLogs, $"added client {item.Data.Login}");
+                            CreateClientSubscriptions(item);
+                        }
+                    }
+                }
+            }
+        }
+
+        protected override void OnStrategiesCountChanged(IChangeSet<ShortStrategyInfo> changes, Client client)
+        {
+            foreach (var change in changes)
+            {
+                if (change.Reason.Equals(ListChangeReason.Add))
+                {
+                    var item = change.Item.Current;
+                    AddStrategyToClient(item, client);
+                }
+                else if (change.Reason.Equals(ListChangeReason.Remove))
+                {
+                    var item = change.Item.Current;
+                    RemoveStrategyFromClient(item, client);
+                }
+            }
+        }
+
+        protected override void AddStrategyToClient(ShortStrategyInfo data, Client client)
+        {
+            lock (_locker)
+            {
+                client.Data.Deposit -= data.Payment;
+                client.Data.Payment += data.Payment;
+
+                var sheet = GetBurseSheet(data.Burse);
+                if (sheet != null)
+                {
+                    var index = FindClientIndex(client.Telegram.Id);
+                    if (index > 0)
+                    {
+                        var address = FindCellAdress(sheet, data.Code, index);
+                        if (address != null)
+                        {
+                            var value = $"{data.TradeLimit}_{data.Payment}";
+                            sheet.Cell(address).Value = value;
+                            _workbook.Save();
+                        }
+                    }
+                }
+            }
+        }
+
+        protected override void RemoveStrategyFromClient(ShortStrategyInfo data, Client client)
+        {
+            lock (_locker)
+            {
+                client.Data.Payment -= data.Payment;
+
+                var sheet = GetBurseSheet(data.Burse);
+                if (sheet != null)
+                {
+                    var index = FindClientIndex(client.Telegram.Id);
+                    if (index > 0)
+                    {
+                        var address = FindCellAdress(sheet, data.Code, index);
+                        if (address != null)
+                        {
+                            sheet.Cell(address).Clear();
+                            _workbook.Save();
+                        }
+                    }
+                }
+            }
+        }
+
+        private int FindClientIndex(string id)
+        {
+            int index = 0;
             var main = _workbook.Worksheet(1);
             var lastRow = main.LastRowUsed().RangeAddress.FirstAddress.RowNumber;
-            if (FindClient(client, main, lastRow, out int index))
-            {
-                GetBurseSheet(client, out IXLWorksheet? burseSheet);
-                if (burseSheet != null)
-                {
-                    lock (main)
-                    {
-                        if (count > oldCount)
-                        {
-                            ChangeSubscriptionData(main, burseSheet, client, index, client.Telegram.Temp.Limit.ToString());
-                            client.Telegram.Temp.Limit = 0;
-                            client.Telegram.Temp.Deposit = 0;
-                            client.Telegram.Temp.Price = 0;
-                            client.Telegram.Temp.Code = string.Empty;
-                            client.Telegram.Temp.PhotoId = string.Empty;
-                        }
-                        else
-                        {
-                            ChangeSubscriptionData(main, burseSheet, client, index, string.Empty);
-                        }
-                    }
-                }
-            }
-        }
-
-        private bool FindClient(Client client, IXLWorksheet main, int lastRow, out int index)
-        {
-            index = 0;
             bool result = false;
-            GetBurseSheet(client, out IXLWorksheet? burseSheet);
-            if (burseSheet != null)
+
+            for (int i = 2; i <= lastRow; i++)
             {
-                for (int i = 2; i <= lastRow; i++)
+                var row = main.Row(i);
+                var _ = row.Cell(4).Value.ToString();
+                if (_.Equals(id))
                 {
-                    var row = main.Row(i);
-                    var id = row.Cell(4).Value.ToString();
-                    if (id == client.Telegram.Id)
-                    {
-                        index = i;
-                        result = true;
-                    }
+                    index = i;
+                    result = true;
                 }
             }
-            return result;
+            return index;
         }
-        private void ChangeSubscriptionData(IXLWorksheet main, IXLWorksheet burseSheet, Client client, int index, string value)
+        private string FindCellAdress(IXLWorksheet sheet, string code, int index)
         {
-            main.Row(index).Cell(6).Value = client.Data.Payment;
-            var range = burseSheet.Range("A1:Z1").Cells();
+            var address = string.Empty;
+            var range = sheet.Range("A1:Z1").Cells();
             foreach (var cell in range)
             {
-                if (client.Telegram.Temp.Code == cell.Value.ToString())
+                if (code.Equals(cell.Value.ToString()))
                 {
-                    var address = (cell.Address.ColumnLetter + index).ToString();
-                    burseSheet.Cell(address).Value = value;
-                    _workbook.Save();
+                    address = cell.Address.ColumnLetter + index;
                 }
             }
-        }
-        private void GetBurseSheet(Client client, out IXLWorksheet? burseSheet)
-        {
-            burseSheet = null;
-            var burse = client.Telegram.Temp.Burse;
-            if (burse != null)
-            {
-                if (client.Telegram.Temp.Burse.Equals("Okx")) burseSheet = _workbook.Worksheet(2);
-                else if (client.Telegram.Temp.Burse.Equals("Binance")) burseSheet = _workbook.Worksheet(3);
-                else if (client.Telegram.Temp.Burse.Equals("Bybit")) burseSheet = _workbook.Worksheet(4);
-                else if (client.Telegram.Temp.Burse.Equals("Quik")) burseSheet = _workbook.Worksheet(5);
-            }
-        }
-
-        protected override void OnTradeLimitChanged(ShortStrategyInfo item, int limit, string login)
-        {
-            Logger.AddLog(_clientLogs, $"{login}: {item.Code} - {item.TradeLimit}");
+            return address;
         }
     }
 }
