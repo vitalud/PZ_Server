@@ -25,7 +25,7 @@ namespace Server.Models
 
         private readonly InstrumentService _instrumentService;
 
-        private readonly TcpListener _listener = new(IPAddress.Parse("127.0.0.1"), 1020);
+        private readonly TcpListener _listener = new(IPAddress.Parse("127.0.0.1"), 1021);
         private TcpClient _quik;
 
         private readonly IObservableList<Instrument> _instruments;

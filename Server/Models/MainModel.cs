@@ -29,7 +29,7 @@ namespace Server.Models
             var currentTime = DateTime.Now;
             var millisecondsRemaining = 24 * 60 * 60 * 1000 - currentTime.TimeOfDay.TotalMilliseconds;
             var timeToNextDay = TimeSpan.FromMilliseconds(millisecondsRemaining);
-            _timer = new Timer(_ => SaveLogs(), null, timeToNextDay, TimeSpan.FromDays(1));
+            _timer = new Timer(_ => Logger.UiInvoke(SaveLogs), null, timeToNextDay, TimeSpan.FromDays(1));
         }
 
         public void SaveLogs()
@@ -50,6 +50,12 @@ namespace Server.Models
         public void Test()
         {
             _burses.Test();
+        }
+
+        private async Task DelayedTask()
+        {
+            await Task.Delay(5000);
+            SaveLogs();
         }
     }
 }
