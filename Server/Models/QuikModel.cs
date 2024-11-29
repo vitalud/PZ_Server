@@ -1,13 +1,12 @@
 ﻿using DynamicData;
-using Newtonsoft.Json;
 using ProjectZeroLib;
 using ProjectZeroLib.Enums;
 using ProjectZeroLib.Instruments;
 using ReactiveUI;
-using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Reactive.Linq;
+using System.Text.Json;
 using CustomInterval = ProjectZeroLib.Enums.KlineInterval;
 
 namespace Server.Models
@@ -71,7 +70,7 @@ namespace Server.Models
         }
         private async Task GetQuikData(string data)
         {
-            var indicators = JsonConvert.DeserializeObject<QuikIndicators>(data);
+            var indicators = JsonSerializer.Deserialize<QuikIndicators>(data);
             if (indicators != null)
             {
                 var stock = _instrumentService.QuikInstruments.Items.FirstOrDefault(x => x.Name.Id.Equals(indicators.SecCode) & x.Name.Type.Equals(indicators.ClassCode));
@@ -97,8 +96,10 @@ namespace Server.Models
                     {
                         lock (stock)
                         {
+                            stock.LastUpdate = DateTime.Now;
+
                             kline.Day = indicators.Day;
-                            kline.Time = indicators.Time;
+                            kline.Time = indicators.Time * 100;
                             kline.Open = indicators.Open;
                             kline.High = indicators.High;
                             kline.Low = indicators.Low;
