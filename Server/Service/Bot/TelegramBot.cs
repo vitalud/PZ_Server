@@ -4,6 +4,7 @@ using ReactiveUI;
 using Server.Service.Abstract;
 using Server.Service.Enums;
 using System.Data;
+using System.IO;
 using System.Reactive.Linq;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -27,8 +28,8 @@ namespace Server.Service.Bot
 
         private static readonly List<PaymentSystem> paymentSystems =
         [
-            new("Sberbank", KeyEncryptor.ReadKeyFromFile("sber")),
-            new("Ukassa", KeyEncryptor.ReadKeyFromFile("ukassa"))
+            new("Sberbank", KeyEncryptor.ReadKeyFromFile("sber", "projectzero.txt")),
+            new("Ukassa", KeyEncryptor.ReadKeyFromFile("ukassa", "projectzero.txt"))
         ];
 
         private readonly SourceList<string> _messages = new();
@@ -42,8 +43,8 @@ namespace Server.Service.Bot
             _clientDataBase = clientDataBase;
             _strategies = strategies;
 
-            _adminId = long.Parse(KeyEncryptor.ReadKeyFromFile("admin"));
-            _botToken = KeyEncryptor.ReadKeyFromFile("telegram");
+            _adminId = long.Parse(KeyEncryptor.ReadKeyFromFile("admin", "projectzero.txt"));
+            _botToken = KeyEncryptor.ReadKeyFromFile("telegram", "projectzero.txt");
 
             if (_botToken != null)
                 _bot = new(_botToken);
@@ -380,26 +381,31 @@ namespace Server.Service.Bot
         /// <returns></returns>
         private async Task SendStrategy(Client client, CallbackQuery query, string subtype)
         {
-            var strategies = _strategies.StrategiesList.Items.Where(x => (x.Name.ToString(), x.TelegramInfo.Subtype).Equals((client.Telegram.Temp.Burse, subtype))).ToList();
+            var strategies = _strategies.StrategiesList.Items.Where(x => (x.Name.ToString(), x.Telegram.Subtype).Equals((client.Telegram.Temp.Burse, subtype))).ToList();
             if (strategies.Count != 0) 
                 client.Telegram.Temp.Strategies = strategies;
             else return;
 
-            client.Telegram.Temp.Strategies.Sort((a, b) => b.TelegramInfo.Pl.CompareTo(a.TelegramInfo.Pl));
+            client.Telegram.Temp.Strategies.Sort((a, b) => b.Telegram.Pl.CompareTo(a.Telegram.Pl));
             client.Telegram.Index = 0;
             client.Telegram.Lenght = client.Telegram.Temp.Strategies.Count;
 
             InlineKeyboardMarkup inlineKeyboard = TelegramMenuService.GenerateStrategiesSubButtons(TelegramMenuService.GetCallbackString(Callback.Sub), "Подписаться", client);
 
-            var firstStrategy = client.Telegram.Temp.Strategies[0];
-            await _bot.SendPhotoAsync(
-                chatId: query.Message.Chat.Id,
-                photo: InputFile.FromUri(firstStrategy.TelegramInfo.PhotoUrl),
-                caption: $"Стратегия: {firstStrategy.Code} \n" +
-                $"Описание: {firstStrategy.TelegramInfo.Description} \n" +
-                $"PL: {firstStrategy.TelegramInfo.Pl} \n" +
-                $"Минимальный торговый лимит: {firstStrategy.TelegramInfo.Limit} руб.",
-                replyMarkup: inlineKeyboard);
+            var _ = client.Telegram.Temp.Strategies[0];
+            using (var stream = new FileStream(_.Telegram.ImagePath, FileMode.Open, FileAccess.Read))
+            {
+                var inputFile = InputFile.FromStream(stream, Path.GetFileName(_.Telegram.ImagePath));
+
+                await _bot.SendPhotoAsync(
+                    chatId: query.Message.Chat.Id,
+                    photo: inputFile,
+                    caption: $"Стратегия: {_.Code} \n" +
+                    $"Описание: {_.Telegram.Description} \n" +
+                    $"PL: {_.Telegram.Pl} \n" +
+                    $"Минимальный торговый лимит: {_.Telegram.Limit} руб.",
+                    replyMarkup: inlineKeyboard);
+            }
         }
 
         /// <summary>
@@ -595,17 +601,24 @@ namespace Server.Service.Bot
             if (client.Telegram.Temp.Code != null)
             {
                 var strat = client.Telegram.Temp.Strategies[client.Telegram.Index];
-                await _bot.SendPhotoAsync(
-                    chatId: message.Chat.Id,
-                    photo: InputFile.FromUri(strat.TelegramInfo.PhotoUrl),
-                    caption: $"Стратегия: {strat.Code} \n" +
-                    $"Описание: {strat.TelegramInfo.Description}\n" +
-                    $"Минимальный торговый лимит: {strat.TelegramInfo.Limit} руб.");
 
-                await _bot.SendTextMessageAsync(
-                    chatId: message.Chat.Id,
-                    text: $"Введите торговый лимит:");
-                client.Telegram.Stage = Stage.Limit;
+                using (var stream = new FileStream(strat.Telegram.ImagePath, FileMode.Open, FileAccess.Read))
+                {
+                    var inputFile = InputFile.FromStream(stream, Path.GetFileName(strat.Telegram.ImagePath));
+
+                    await _bot.SendPhotoAsync(
+                        chatId: message.Chat.Id,
+                        photo: inputFile,
+                        caption: $"Стратегия: {strat.Code} \n" +
+                        $"Описание: {strat.Telegram.Description}\n" +
+                        $"Минимальный торговый лимит: {strat.Telegram.Limit} руб.");
+
+                    await _bot.SendTextMessageAsync(
+                        chatId: message.Chat.Id,
+                        text: $"Введите торговый лимит:");
+                    client.Telegram.Stage = Stage.Limit;
+                }
+
             }
             else
             {
@@ -722,17 +735,22 @@ namespace Server.Service.Bot
             else
             {
                 client.Telegram.Index = 0;
-                var strat = client.Data.Strategies.Items[client.Telegram.Index];
-                var photoId = _strategies.StrategiesList.Items.First(x => x.Code.Equals(strat.Code)).TelegramInfo.PhotoUrl;
-                if (photoId != null)
+                var _ = client.Data.Strategies.Items[client.Telegram.Index];
+                var strat = _strategies.StrategiesList.Items.FirstOrDefault(x => x.Code.Equals(_.Code));
+                if (strat != null)
                 {
-                    await _bot.SendPhotoAsync(
-                            chatId: message.Chat.Id,
-                            photo: InputFile.FromFileId(photoId),
-                            caption: $"Стратегия: {strat.Code} \n" +
-                            $"Торговый лимит: {strat.TradeLimit} руб. \n" +
-                            $"Тариф: {strat.Payment} руб./день",
-                            replyMarkup: TelegramMenuService.GenerateStrategiesSubButtons(TelegramMenuService.GetCallbackString(Callback.Unsub), "Отписаться", client));
+                    using (var stream = new FileStream(strat.Telegram.ImagePath, FileMode.Open, FileAccess.Read))
+                    {
+                        var inputFile = InputFile.FromStream(stream, Path.GetFileName(strat.Telegram.ImagePath));
+
+                        await _bot.SendPhotoAsync(
+                                chatId: message.Chat.Id,
+                                photo: inputFile,
+                                caption: $"Стратегия: {_.Code} \n" +
+                                $"Торговый лимит: {_.TradeLimit} руб. \n" +
+                                $"Тариф: {_.Payment} руб./день",
+                                replyMarkup: TelegramMenuService.GenerateStrategiesSubButtons(TelegramMenuService.GetCallbackString(Callback.Unsub), "Отписаться", client));
+                    }
                 }
             }
         }
@@ -827,15 +845,21 @@ namespace Server.Service.Bot
         {
             var caption =
                 $"Стратегия: {strategy.Code} \n" +
-                $"Описание: {strategy.TelegramInfo.Description} \n" +
-                $"PL: {strategy.TelegramInfo.Pl} \n" +
-                $"Минимальный торговый лимит: {strategy.TelegramInfo.Limit} руб.";
+                $"Описание: {strategy.Telegram.Description} \n" +
+                $"PL: {strategy.Telegram.Pl} \n" +
+                $"Минимальный торговый лимит: {strategy.Telegram.Limit} руб.";
 
-            await _bot.SendPhotoAsync(
-                chatId: chatId,
-                photo: InputFile.FromUri(strategy.TelegramInfo.PhotoUrl),
-                caption: caption,
-                replyMarkup: TelegramMenuService.GenerateStrategiesSubButtons(TelegramMenuService.GetCallbackString(Callback.Sub), "Подписаться", client));
+            using (var stream = new FileStream(strategy.Telegram.ImagePath, FileMode.Open, FileAccess.Read))
+            {
+                var inputFile = InputFile.FromStream(stream, Path.GetFileName(strategy.Telegram.ImagePath));
+
+                await _bot.SendPhotoAsync(
+                    chatId: chatId,
+                    photo: inputFile,
+                    caption: caption,
+                    replyMarkup: TelegramMenuService.GenerateStrategiesSubButtons(TelegramMenuService.GetCallbackString(Callback.Sub), "Подписаться", client));
+
+            }
         }
 
         /// <summary>
@@ -847,7 +871,7 @@ namespace Server.Service.Bot
         {
             var temp = client.Telegram.Temp;
             temp.Code = temp.Strategies[client.Telegram.Index].Code;
-            temp.Price = temp.Strategies[client.Telegram.Index].TelegramInfo.Limit;
+            temp.Price = temp.Strategies[client.Telegram.Index].Telegram.Limit;
         }
 
         /// <summary>

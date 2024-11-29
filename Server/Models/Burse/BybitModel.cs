@@ -27,8 +27,8 @@ namespace Server.Models.Burse
 
         public BybitModel(InstrumentService instrumentService, BurseName name) : base(instrumentService, name)
         {
-            _keys = [KeyEncryptor.ReadKeyFromFile("bybitapi"), 
-                     KeyEncryptor.ReadKeyFromFile("bybitsecret")];
+            _keys = [KeyEncryptor.ReadKeyFromFile("bybitapi", "projectzero.txt"), 
+                     KeyEncryptor.ReadKeyFromFile("bybitsecret", "projectzero.txt")];
         }
 
         protected override void SetupClientsAsync()

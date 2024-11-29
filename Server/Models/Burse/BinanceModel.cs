@@ -29,8 +29,8 @@ namespace Server.Models.Burse
 
         public BinanceModel(InstrumentService instrumentService, BurseName name) : base(instrumentService, name)
         {
-            _keys = [KeyEncryptor.ReadKeyFromFile("binanceapi"), 
-                     KeyEncryptor.ReadKeyFromFile("binancesecret")];
+            _keys = [KeyEncryptor.ReadKeyFromFile("binanceapi", "projectzero.txt"), 
+                     KeyEncryptor.ReadKeyFromFile("binancesecret", "projectzero.txt")];
         }
 
         protected override void SetupClientsAsync()

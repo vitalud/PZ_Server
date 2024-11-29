@@ -2,6 +2,7 @@
 using ReactiveUI;
 using Server.Models;
 using System.Collections.ObjectModel;
+using System.Reactive;
 
 namespace Server.ViewModels
 {
@@ -26,6 +27,8 @@ namespace Server.ViewModels
         private readonly ReadOnlyObservableCollection<string> _telegramLogs;
         public ReadOnlyObservableCollection<string> TelegramLogs => _telegramLogs;
 
+        public ReactiveCommand<Unit, Unit> StartTelegram { get; }
+
         public ServerViewModel(ServerModel server)
         {
             _server = server;
@@ -40,6 +43,8 @@ namespace Server.ViewModels
             telegram.Errors.Connect()
                      .Bind(out _errorLogs)
                      .Subscribe();
+
+            StartTelegram = ReactiveCommand.Create(() => _server.Start());
         }
     }
 }

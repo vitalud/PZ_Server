@@ -20,8 +20,6 @@ namespace Server.Models
             _burses = burses;
 
             SetupTimer();
-
-            _server.Start();
         }
 
         private void SetupTimer()

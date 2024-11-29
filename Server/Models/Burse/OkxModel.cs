@@ -27,9 +27,9 @@ namespace Server.Models.Burse
 
         public OkxModel(InstrumentService instrumentService, BurseName name) : base(instrumentService, name)
         {
-            _keys = [KeyEncryptor.ReadKeyFromFile("okxapi"), 
-                     KeyEncryptor.ReadKeyFromFile("okxsecret"), 
-                     KeyEncryptor.ReadKeyFromFile("okxword")];
+            _keys = [KeyEncryptor.ReadKeyFromFile("okxapi", "projectzero.txt"), 
+                     KeyEncryptor.ReadKeyFromFile("okxsecret", "projectzero.txt"), 
+                     KeyEncryptor.ReadKeyFromFile("okxword", "projectzero.txt")];
         }
 
         protected override void SetupClientsAsync()

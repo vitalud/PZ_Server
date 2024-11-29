@@ -1,9 +1,8 @@
-﻿using Server.Service.Enums;
+﻿using ProjectZeroLib.Enums;
+using Server.Service.Enums;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
-using ProjectZeroLib;
-using ProjectZeroLib.Enums;
 
 namespace Server.Service.Bot
 {
@@ -108,10 +107,10 @@ namespace Server.Service.Bot
 
         private static async Task ChangeInfoElement(TelegramBotClient bot, Client client, CallbackQuery query)
         {
-            //var strat = client.Data.Strategies.Items[client.Telegram.Index];
-            //var limit = strat.TradeLimit;
-            //var info = Strategies.StrategiesList.Items.First(x => x.Code == client.Data.Strategies.Items[client.Telegram.Index].Code);
-            //if (info != null)
+            //var _ = client.Data.Strategies.Items[client.Telegram.Index];
+            //var limit = _.TradeLimit;
+            //var strat = Strategies.StrategiesList.Items.First(x => x.Code == client.Data.Strategies.Items[client.Telegram.Index].Code);
+            //if (strat != null)
             //{
             //    double charge = Math.Round(limit * client.Data.Percentage / 100 + 1);
             //    await bot.DeleteMessageAsync(
@@ -119,8 +118,8 @@ namespace Server.Service.Bot
             //            messageId: query.Message.MessageId);
             //    await bot.SendPhotoAsync(
             //        chatId: query.Message.Chat.Id,
-            //        photo: InputFile.FromFileId(info.TelegramInfo.PhotoUrl),
-            //        caption: $"Стратегия: {info.Code} \n" +
+            //        photo: InputFile.FromFileId(strat.TelegramInfo.PhotoUrl),
+            //        caption: $"Стратегия: {strat.Code} \n" +
             //        $"Торговый лимит: {limit} руб. \n" +
             //        $"Тариф: {charge} руб./день",
             //        replyMarkup: GenerateStrategiesSubButtons("unsub", "Отписаться", client));
@@ -130,13 +129,13 @@ namespace Server.Service.Bot
         private static async Task ChangeStrategiesElement(TelegramBotClient bot, Client client, CallbackQuery query)
         {
             var strat = client.Telegram.Temp.Strategies[client.Telegram.Index];
-            var info = strat.TelegramInfo;
+            var info = strat.Telegram;
             await bot.DeleteMessageAsync(
                     chatId: query.Message.Chat.Id,
                     messageId: query.Message.MessageId);
             await bot.SendPhotoAsync(
                 chatId: query.Message.Chat.Id,
-                photo: InputFile.FromUri(info.PhotoUrl),
+                photo: InputFile.FromUri(info.ImagePath),
                 caption: $"Стратегия: {strat.Code} \n" +
                 $"Описание: {info.Description} \n" +
                 $"PL: {info.Pl} \n" +

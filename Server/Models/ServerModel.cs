@@ -15,12 +15,13 @@ namespace Server.Models
         {
             _telegram = telegram;
             _connector = connector;
+
+            _connector.ConnectorStart();
         }
 
         public void Start()
         {
             _telegram.Start();
-            _connector.ConnectorStart();
         }
     }
 }

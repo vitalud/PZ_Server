@@ -4,6 +4,7 @@ using ProjectZeroLib;
 using ProjectZeroLib.Enums;
 using ProjectZeroLib.Instruments;
 using ReactiveUI;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using System.Reactive.Linq;
@@ -42,8 +43,7 @@ namespace Server.Models
         {
             _instrumentService = instrumentService;
 
-            _instruments = _instrumentService.Instruments.Connect()
-                .Filter(x => x.Name.Equals(BurseName.Quik))
+            _instruments = _instrumentService.QuikInstruments.Connect()
                 .AsObservableList();
 
             GetQuikClient();
@@ -74,17 +74,18 @@ namespace Server.Models
             var indicators = JsonConvert.DeserializeObject<QuikIndicators>(data);
             if (indicators != null)
             {
-                var stock = _instrumentService.Instruments.Items.FirstOrDefault(x => x.Name.Id.Equals(indicators.SecCode) & x.Name.Type.Equals(indicators.ClassCode));
+                var stock = _instrumentService.QuikInstruments.Items.FirstOrDefault(x => x.Name.Id.Equals(indicators.SecCode) & x.Name.Type.Equals(indicators.ClassCode));
                 if (stock == null) 
                 {
                     var instrument = new Instrument(BurseName.Quik, new InstrumentName(indicators.SecCode))
                     {
+                        IsActive = true,
                         Name = 
                         { 
                             Type = indicators.ClassCode 
                         }
                     };
-                    _instrumentService.Instruments.Add(instrument);
+                    _instrumentService.QuikInstruments.Add(instrument);
                     stock = instrument;
                 }
 
@@ -115,6 +116,8 @@ namespace Server.Models
 
                             kline.Day = indicators.Day;
                             kline.Time = indicators.Time;
+
+                            stock.SignalData.Complete = true;
                         }
                     }
                 }
@@ -124,6 +127,13 @@ namespace Server.Models
         {
             return intervalMapping.TryGetValue(interval, out var result) ? result : CustomInterval.None;
         }
-    }
 
+        private void Test()
+        {
+            var json = "{\r\n  \"secCode\": \"USD\",\r\n  \"classCode\": \"type\",\r\n  \"Interval\": \"M1\"\r\n}\r\n";
+            GetQuikData(json);
+            var json2 = "{\r\n  \"secCode\": \"USD\",\r\n  \"classCode\": \"type\",\r\n  \"Interval\": \"M1\",\r\n  \"time\": 0,\r\n  \"day\": 0,\r\n  \"open\": 14.0,\r\n  \"high\": 88.0,\r\n  \"low\": 22.0,\r\n  \"close\": 8.0,\r\n  \"allBids\": 1.0,\r\n  \"bestBids\": 2.0,\r\n  \"numBids\": 3.0,\r\n  \"allAsks\": 4.0,\r\n  \"bestAsks\": 5.0,\r\n  \"numAsks\": 6.0,\r\n  \"tradesBuy\": 7.0,\r\n  \"tradesSell\": 8.0,\r\n  \"volume\": 10.0\r\n}\r\n";
+            GetQuikData(json2);
+        }
+    }
 }
