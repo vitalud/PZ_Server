@@ -3,6 +3,7 @@ using ProjectZeroLib;
 using ProjectZeroLib.Enums;
 using ProjectZeroLib.Instruments;
 using ReactiveUI;
+using Server.Service.Bot;
 using System.Net;
 using System.Net.Sockets;
 using System.Reactive.Linq;
@@ -23,48 +24,76 @@ namespace Server.Models
             { "D1", CustomInterval.OneDay }
         };
 
+        private readonly TelegramBot _telegram;
         private readonly InstrumentService _instrumentService;
 
         private readonly TcpListener _listener = new(IPAddress.Parse("127.0.0.1"), 1021);
-        private TcpClient _quik;
+        private TcpClient? _quik;
 
         private readonly IObservableList<Instrument> _instruments;
         public IObservableList<Instrument> Instruments => _instruments;
 
-        private string _status;
-        public string Status
+        private bool _isConnected;
+        public bool IsConnected
         {
-            get => _status;
-            set => this.RaiseAndSetIfChanged(ref _status, value);
+            get => _isConnected;
+            set => this.RaiseAndSetIfChanged(ref _isConnected, value);
         }
 
-        public QuikModel(InstrumentService instrumentService)
+
+        public QuikModel(InstrumentService instrumentService, TelegramBot telegram)
         {
             _instrumentService = instrumentService;
+            _telegram = telegram;
 
             _instruments = _instrumentService.QuikInstruments.Connect()
                 .AsObservableList();
 
-            GetQuikClient();
+            Start();
         }
 
-        private async void GetQuikClient()
+        private void Start()
         {
             _listener.Start();
-            Status = "Ожидание подключения от Quik";
-            _quik = await _listener.AcceptTcpClientAsync();
-            _ = HandleQuikClientAsync();
+            Task.Run(GetQuikAsync);
+        }
+        private async Task GetQuikAsync()
+        {
+            while (true)
+            {
+                if (!_isConnected)
+                {
+                    _quik = await _listener.AcceptTcpClientAsync();
+                    IsConnected = true;
+                    _ = HandleQuikClientAsync();
+                }
+            }
         }
         private async Task HandleQuikClientAsync()
         {
-            using var stream = _quik.GetStream();
-            Status = "Подключен";
-            while (true)
+            if (_quik != null)
             {
-                var message = await TcpService.ReadMessageAsync(stream);
-                if (message != null)
+                using var stream = _quik.GetStream();
+                try
                 {
-                    await GetQuikData(message);
+                    while (true)
+                    {
+                        var message = await TcpService.ReadMessageAsync(stream);
+                        if (message != null)
+                        {
+                            await GetQuikData(message);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    await _telegram.SendQuikErrorMessage();
+                }
+                finally
+                {
+                    _quik.Dispose();
+                    await Logger.UiInvoke(() => _instrumentService.QuikInstruments.Clear());
+                    IsConnected = false;
                 }
             }
         }
@@ -84,7 +113,7 @@ namespace Server.Models
                             Type = indicators.ClassCode 
                         }
                     };
-                    _instrumentService.QuikInstruments.Add(instrument);
+                    await Logger.UiInvoke(() => _instrumentService.QuikInstruments.Add(instrument));
                     stock = instrument;
                 }
 
@@ -98,8 +127,6 @@ namespace Server.Models
                         {
                             stock.LastUpdate = DateTime.Now;
 
-                            kline.Day = indicators.Day;
-                            kline.Time = indicators.Time * 100;
                             kline.Open = indicators.Open;
                             kline.High = indicators.High;
                             kline.Low = indicators.Low;
@@ -127,14 +154,6 @@ namespace Server.Models
         private static CustomInterval ParseQuikInterval(string interval)
         {
             return intervalMapping.TryGetValue(interval, out var result) ? result : CustomInterval.None;
-        }
-
-        private void Test()
-        {
-            var json = "{\r\n  \"secCode\": \"USD\",\r\n  \"classCode\": \"type\",\r\n  \"Interval\": \"M1\"\r\n}\r\n";
-            GetQuikData(json);
-            var json2 = "{\r\n  \"secCode\": \"USD\",\r\n  \"classCode\": \"type\",\r\n  \"Interval\": \"M1\",\r\n  \"time\": 0,\r\n  \"day\": 0,\r\n  \"open\": 14.0,\r\n  \"high\": 88.0,\r\n  \"low\": 22.0,\r\n  \"close\": 8.0,\r\n  \"allBids\": 1.0,\r\n  \"bestBids\": 2.0,\r\n  \"numBids\": 3.0,\r\n  \"allAsks\": 4.0,\r\n  \"bestAsks\": 5.0,\r\n  \"numAsks\": 6.0,\r\n  \"tradesBuy\": 7.0,\r\n  \"tradesSell\": 8.0,\r\n  \"volume\": 10.0\r\n}\r\n";
-            GetQuikData(json2);
         }
     }
 }

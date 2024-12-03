@@ -126,6 +126,13 @@ namespace Server.Service.Bot
                     text: $"@VitalUd, я умер.");
         }
 
+        public async Task SendQuikErrorMessage()
+        {
+            await _bot.SendTextMessageAsync(
+                    chatId: _adminId,
+                    text: $"@VitalUd, Quik умер");
+        }
+
         /// <summary>
         /// Обработчик обновлений типа Message.
         /// </summary>
@@ -169,8 +176,8 @@ namespace Server.Service.Bot
             if (message.Text.Equals("/strategies"))
             {
                 client.Telegram.Stage = Stage.Strategy;
-                string[] names = TelegramMenuService.StrategiesMenu.Select(x => x.Name).ToArray();
-                InlineKeyboardMarkup inlineKeyboard = TelegramMenuService.GenerateButtons(names, buttonsPerRow: 1, callback: "burse_name_");
+                string[] names = MenuService.StrategiesMenu.Select(x => x.Name).ToArray();
+                InlineKeyboardMarkup inlineKeyboard = MenuService.GenerateButtons(names, buttonsPerRow: 1, callback: "burse_name_");
                 await _bot.SendTextMessageAsync(
                     chatId: message.Chat.Id,
                     text: $"Выберите биржу:",
@@ -273,28 +280,28 @@ namespace Server.Service.Bot
         {
             if (data[0].Equals("move"))
             {
-                if (data[1].Equals(TelegramMenuService.GetCallbackString(Callback.Next)) ||
-                    data[1].Equals(TelegramMenuService.GetCallbackString(Callback.Previous)))
-                    await TelegramMenuService.MoveButton(_bot, client, callbackQuery, data[1]);
+                if (data[1].Equals(MenuService.GetCallbackString(Callback.Next)) ||
+                    data[1].Equals(MenuService.GetCallbackString(Callback.Previous)))
+                    await MoveButton(_bot, client, callbackQuery, data[1]);
             }
 
             if (client.Telegram.Stage.Equals(Stage.Zero))
             {
-                if (data[0].Equals(TelegramMenuService.GetCallbackString(Callback.Unsub)))
+                if (data[0].Equals(MenuService.GetCallbackString(Callback.Unsub)))
                     await UnsubscribeFromStrategy(client, callbackQuery);
             }
             else if (client.Telegram.Stage.Equals(Stage.Strategy))
             {
                 if (data[0].Equals("burse"))
                 {
-                    if (data[1].Equals(TelegramMenuService.GetCallbackString(Callback.Name)))
+                    if (data[1].Equals(MenuService.GetCallbackString(Callback.Name)))
                         await SendTypes(client, callbackQuery, data[2]);
-                    else if (data[1].Equals(TelegramMenuService.GetCallbackString(Callback.Type)))
+                    else if (data[1].Equals(MenuService.GetCallbackString(Callback.Type)))
                         await SendSubtypes(client, callbackQuery, data[2]);
-                    else if (data[1].Equals(TelegramMenuService.GetCallbackString(Callback.Subtype)))
+                    else if (data[1].Equals(MenuService.GetCallbackString(Callback.Subtype)))
                         await SendStrategy(client, callbackQuery, data[2]);
                 }
-                else if (data[0].Equals(TelegramMenuService.GetCallbackString(Callback.Sub)))
+                else if (data[0].Equals(MenuService.GetCallbackString(Callback.Sub)))
                     await SubscribeToStrategy(client, callbackQuery);
             }
             else if (client.Telegram.Stage.Equals(Stage.Payment))
@@ -330,14 +337,14 @@ namespace Server.Service.Bot
         {
             if (query.Data != null)
             {
-                var _ = TelegramMenuService.StrategiesMenu.Find(x => x.Name.Equals(burse));
+                var _ = MenuService.StrategiesMenu.Find(x => x.Name.Equals(burse));
                 if (_ != null)
                 {
                     var types = _.Types.Select(x => x.Code).ToArray();
                     if (types.Length != 0)
                     {
                         client.Telegram.Temp.Burse = burse;
-                        InlineKeyboardMarkup inlineKeyboard = TelegramMenuService.GenerateButtons(types, buttonsPerRow: 1, callback: "burse_type_");
+                        InlineKeyboardMarkup inlineKeyboard = MenuService.GenerateButtons(types, buttonsPerRow: 1, callback: "burse_type_");
                         await _bot.EditMessageTextAsync(
                             chatId: query.Message.Chat.Id,
                             messageId: query.Message.MessageId,
@@ -359,10 +366,10 @@ namespace Server.Service.Bot
         {
             if (query != null)
             {
-                var subtypes = TelegramMenuService.StrategiesMenu.SelectMany(x => x.Types).First(x => x.Name.Equals(type)).Subtypes;
+                var subtypes = MenuService.StrategiesMenu.SelectMany(x => x.Types).First(x => x.Name.Equals(type)).Subtypes;
                 if (subtypes.Length != 0)
                 {
-                    InlineKeyboardMarkup inlineKeyboard = TelegramMenuService.GenerateButtons(subtypes, buttonsPerRow: 1, callback: "burse_subtype_");
+                    InlineKeyboardMarkup inlineKeyboard = MenuService.GenerateButtons(subtypes, buttonsPerRow: 1, callback: "burse_subtype_");
                     await _bot.EditMessageTextAsync(
                         chatId: query.Message.Chat.Id,
                         messageId: query.Message.MessageId,
@@ -390,7 +397,7 @@ namespace Server.Service.Bot
             client.Telegram.Index = 0;
             client.Telegram.Lenght = client.Telegram.Temp.Strategies.Count;
 
-            InlineKeyboardMarkup inlineKeyboard = TelegramMenuService.GenerateStrategiesSubButtons(TelegramMenuService.GetCallbackString(Callback.Sub), "Подписаться", client);
+            InlineKeyboardMarkup inlineKeyboard = MenuService.GenerateStrategiesSubButtons(MenuService.GetCallbackString(Callback.Sub), "Подписаться", client);
 
             var _ = client.Telegram.Temp.Strategies[0];
             using (var stream = new FileStream(_.Telegram.ImagePath, FileMode.Open, FileAccess.Read))
@@ -472,7 +479,7 @@ namespace Server.Service.Bot
                             await _bot.SendTextMessageAsync(
                                 chatId: query.Message.Chat.Id,
                                 text: $"Вы отписались от стратегии {strat.Code}");
-                            Logger.UiInvoke(() => client.Data.Strategies.RemoveAt(index));
+                            await Logger.UiInvoke(() => client.Data.Strategies.RemoveAt(index));
                         }
                     }
                 }
@@ -531,7 +538,7 @@ namespace Server.Service.Bot
                         client.Telegram.Temp.Deposit = deposit;
                         string[] names = new string[paymentSystems.Count];
                         for (int i = 0; i < paymentSystems.Count; i++) names[i] = paymentSystems[i].Name.ToString();
-                        InlineKeyboardMarkup inlineKeyboard = TelegramMenuService.GenerateButtons(names, buttonsPerRow: 1);
+                        InlineKeyboardMarkup inlineKeyboard = MenuService.GenerateButtons(names, buttonsPerRow: 1);
                         await _bot.SendTextMessageAsync(
                             chatId: message.Chat.Id,
                             text: $"Выберите способ оплаты:",
@@ -573,8 +580,7 @@ namespace Server.Service.Bot
                                     providerToken: system.Token,
                                     currency: "RUB",
                                     prices: price,
-                                    photoUrl: system.photoUrl,
-                                    replyMarkup: TelegramMenuService.GeneratePaymentButtons());
+                                    replyMarkup: MenuService.GeneratePaymentButtons());
                     }
                 }
             }
@@ -668,7 +674,7 @@ namespace Server.Service.Bot
                             $"Стратегия: {client.Telegram.Temp.Code}.\n" +
                             $"Торговый лимит: {client.Telegram.Temp.Limit}.\n" +
                             $"Комиссия: {com + 1} руб/день.",
-                            replyMarkup: TelegramMenuService.GenerateConfirmationButtons());
+                            replyMarkup: MenuService.GenerateConfirmationButtons());
                     }
                 }
             }
@@ -683,7 +689,7 @@ namespace Server.Service.Bot
         private async Task GetSubscription(Client client, CallbackQuery query)
         {
             //Подтверждение покупки 
-            if (query.Data.Equals(TelegramMenuService.GetCallbackString(Callback.Correct)))
+            if (query.Data.Equals(MenuService.GetCallbackString(Callback.Correct)))
             {
                 int payment = (int)(client.Telegram.Temp.Limit * client.Data.Percentage / 100) + 1;
                 Logger.UiInvoke(() => client.Data.Strategies.Add(new(client.Telegram.Temp.Burse, client.Telegram.Temp.Code, client.Telegram.Temp.Limit, payment)));
@@ -694,17 +700,17 @@ namespace Server.Service.Bot
                 await _bot.SendTextMessageAsync(
                     chatId: query.Message.Chat.Id,
                     text: $"Подписка приобретена",
-                    replyMarkup: TelegramMenuService.GenerateContinueButtons());
+                    replyMarkup: MenuService.GenerateContinueButtons());
             }
             //Изменение данных по лимиту
-            else if (query.Data.Equals(TelegramMenuService.GetCallbackString(Callback.Edit)))
+            else if (query.Data.Equals(MenuService.GetCallbackString(Callback.Edit)))
             {
                 await _bot.SendTextMessageAsync(
                     chatId: query.Message.Chat.Id,
                     text: $"Введите торговый лимит:");
             }
             //Завершение работы с выбранным списком подписок
-            else if (query.Data.Equals(TelegramMenuService.GetCallbackString(Callback.Done)))
+            else if (query.Data.Equals(MenuService.GetCallbackString(Callback.Done)))
             {
                 client.Telegram.Temp.Limit = 0;
                 client.Telegram.Temp.Deposit = 0;
@@ -715,7 +721,7 @@ namespace Server.Service.Bot
                 client.Telegram.Stage = Stage.Zero;
             }
             //Возврат к просмотру отобранных подписок
-            else if (query.Data.Equals(TelegramMenuService.GetCallbackString(Callback.Back)))
+            else if (query.Data.Equals(MenuService.GetCallbackString(Callback.Back)))
             {
                 client.Telegram.Stage = Stage.Strategy;
                 var strat = client.Telegram.Temp.Strategies[0];
@@ -749,7 +755,7 @@ namespace Server.Service.Bot
                                 caption: $"Стратегия: {_.Code} \n" +
                                 $"Торговый лимит: {_.TradeLimit} руб. \n" +
                                 $"Тариф: {_.Payment} руб./день",
-                                replyMarkup: TelegramMenuService.GenerateStrategiesSubButtons(TelegramMenuService.GetCallbackString(Callback.Unsub), "Отписаться", client));
+                                replyMarkup: MenuService.GenerateStrategiesSubButtons(MenuService.GetCallbackString(Callback.Unsub), "Отписаться", client));
                     }
                 }
             }
@@ -857,8 +863,68 @@ namespace Server.Service.Bot
                     chatId: chatId,
                     photo: inputFile,
                     caption: caption,
-                    replyMarkup: TelegramMenuService.GenerateStrategiesSubButtons(TelegramMenuService.GetCallbackString(Callback.Sub), "Подписаться", client));
+                    replyMarkup: MenuService.GenerateStrategiesSubButtons(MenuService.GetCallbackString(Callback.Sub), "Подписаться", client));
 
+            }
+        }
+
+        /// <summary>
+        /// Генератор сообщения при нажатии кнопки смещения.
+        /// </summary>
+        private async Task MoveButton(TelegramBotClient bot, Client client, CallbackQuery query, string move)
+        {
+            if (move.Equals("next")) client.Telegram.Index++;
+            else if (move.Equals("previous")) client.Telegram.Index--;
+
+            if (client.Telegram.Stage == Stage.Zero) await ChangeInfoElement(bot, client, query);
+            else if (client.Telegram.Stage == Stage.Strategy) await ChangeStrategiesElement(bot, client, query);
+        }
+
+        private async Task ChangeInfoElement(TelegramBotClient bot, Client client, CallbackQuery query)
+        {
+            var _ = client.Data.Strategies.Items[client.Telegram.Index];
+            var limit = _.TradeLimit;
+            var strat = _strategies.StrategiesList.Items.First(x => x.Code == client.Data.Strategies.Items[client.Telegram.Index].Code);
+            if (strat != null)
+            {
+                double charge = Math.Round(limit * client.Data.Percentage / 100 + 1);
+                await bot.DeleteMessageAsync(
+                        chatId: query.Message.Chat.Id,
+                        messageId: query.Message.MessageId);
+
+                using (var stream = new FileStream(strat.Telegram.ImagePath, FileMode.Open, FileAccess.Read))
+                {
+                    var inputFile = InputFile.FromStream(stream, Path.GetFileName(strat.Telegram.ImagePath));
+                    await bot.SendPhotoAsync(
+                            chatId: query.Message.Chat.Id,
+                            photo: inputFile,
+                            caption: $"Стратегия: {strat.Code} \n" +
+                            $"Торговый лимит: {limit} руб. \n" +
+                            $"Тариф: {charge} руб./день",
+                            replyMarkup: MenuService.GenerateStrategiesSubButtons("unsub", "Отписаться", client));
+                }
+            }
+        }
+
+        private async Task ChangeStrategiesElement(TelegramBotClient bot, Client client, CallbackQuery query)
+        {
+            var strat = client.Telegram.Temp.Strategies[client.Telegram.Index];
+            var info = strat.Telegram;
+            await bot.DeleteMessageAsync(
+                    chatId: query.Message.Chat.Id,
+                    messageId: query.Message.MessageId);
+
+            using (var stream = new FileStream(strat.Telegram.ImagePath, FileMode.Open, FileAccess.Read))
+            {
+                var inputFile = InputFile.FromStream(stream, Path.GetFileName(strat.Telegram.ImagePath));
+                await bot.SendPhotoAsync(
+                        chatId: query.Message.Chat.Id,
+                        photo: inputFile,
+                        caption: $"Стратегия: {strat.Code} \n" +
+                        $"Описание: {info.Description} \n" +
+                        $"PL: {info.Pl} \n" +
+                        $"Минимальный торговый лимит: {info.Limit} руб.",
+                        replyMarkup: MenuService.GenerateStrategiesSubButtons("sub", "Подписаться", client));
             }
         }
 

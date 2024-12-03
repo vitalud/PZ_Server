@@ -113,6 +113,10 @@ namespace Server.Models
             }
             finally
             {
+                if (client != null)
+                {
+                    client.IsActive = false;
+                }
                 dataClient.Close();
                 _connectionSemaphore.Release();
             }

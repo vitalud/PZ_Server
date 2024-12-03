@@ -1,7 +1,4 @@
 ﻿using ProjectZeroLib.Enums;
-using Server.Service.Enums;
-using Telegram.Bot;
-using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace Server.Service.Bot
@@ -33,10 +30,10 @@ namespace Server.Service.Bot
         public string[] Subtypes { get; set; } = subtypes;
     }
 
-    public static class TelegramMenuService
+    public static class MenuService
     {
         public readonly static List<StrategyMenu> StrategiesMenu;
-        static TelegramMenuService()
+        static MenuService()
         {
             StrategiesMenu = [];
             StrategiesMenu.Add(new(
@@ -94,56 +91,6 @@ namespace Server.Service.Bot
         }
 
         /// <summary>
-        /// Генератор сообщения при нажатии кнопки смещения.
-        /// </summary>
-        public static async Task MoveButton(TelegramBotClient bot, Client client, CallbackQuery query, string move)
-        {
-            if (move.Equals("next")) client.Telegram.Index++;
-            else if (move.Equals("previous")) client.Telegram.Index--;
-
-            if (client.Telegram.Stage == Stage.Zero) await ChangeInfoElement(bot, client, query);
-            else if (client.Telegram.Stage == Stage.Strategy) await ChangeStrategiesElement(bot, client, query);
-        }
-
-        private static async Task ChangeInfoElement(TelegramBotClient bot, Client client, CallbackQuery query)
-        {
-            //var _ = client.Data.Strategies.Items[client.Telegram.Index];
-            //var limit = _.TradeLimit;
-            //var strat = Strategies.StrategiesList.Items.First(x => x.Code == client.Data.Strategies.Items[client.Telegram.Index].Code);
-            //if (strat != null)
-            //{
-            //    double charge = Math.Round(limit * client.Data.Percentage / 100 + 1);
-            //    await bot.DeleteMessageAsync(
-            //            chatId: query.Message.Chat.Id,
-            //            messageId: query.Message.MessageId);
-            //    await bot.SendPhotoAsync(
-            //        chatId: query.Message.Chat.Id,
-            //        photo: InputFile.FromFileId(strat.TelegramInfo.PhotoUrl),
-            //        caption: $"Стратегия: {strat.Code} \n" +
-            //        $"Торговый лимит: {limit} руб. \n" +
-            //        $"Тариф: {charge} руб./день",
-            //        replyMarkup: GenerateStrategiesSubButtons("unsub", "Отписаться", client));
-            //}
-        }
-
-        private static async Task ChangeStrategiesElement(TelegramBotClient bot, Client client, CallbackQuery query)
-        {
-            var strat = client.Telegram.Temp.Strategies[client.Telegram.Index];
-            var info = strat.Telegram;
-            await bot.DeleteMessageAsync(
-                    chatId: query.Message.Chat.Id,
-                    messageId: query.Message.MessageId);
-            await bot.SendPhotoAsync(
-                chatId: query.Message.Chat.Id,
-                photo: InputFile.FromUri(info.ImagePath),
-                caption: $"Стратегия: {strat.Code} \n" +
-                $"Описание: {info.Description} \n" +
-                $"PL: {info.Pl} \n" +
-                $"Минимальный торговый лимит: {info.Limit} руб.",
-                replyMarkup: GenerateStrategiesSubButtons("sub", "Подписаться", client));
-        }
-
-        /// <summary>
         /// Создание кнопок под сообщением.
         /// </summary>
         /// <param name="array">Массив имен кнопок.</param>
@@ -157,16 +104,6 @@ namespace Server.Service.Bot
                 return [data.ToArray()];
             else
                 return data.Chunk(buttonsPerRow).Select(c => c.ToArray()).ToArray();
-        }
-
-        public static T GetElement<T>(List<T> list, int index)
-        {
-            if (index < 0 || index >= list.Count)
-            {
-                throw new ArgumentOutOfRangeException(nameof(index), "Индекс находится вне диапазона списка.");
-            }
-
-            return list[index];
         }
 
         //Генератор кнопок для работы с подписками: buy - в поиске/просмотре стратегий; unsub - в инфо

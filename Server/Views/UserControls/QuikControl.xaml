@@ -11,7 +11,7 @@
             <StackPanel DockPanel.Dock="Top"
                         Orientation="Horizontal">
                 <Label Content="Quik:"></Label>
-                <Label Content="{Binding Status}"
+                <Label Content="{Binding IsConnected}"
                        Margin="5,0"></Label>
             </StackPanel>
 
@@ -44,6 +44,8 @@
                                         IsReadOnly="True" Width="*"/>
                     <DataGridTextColumn Header="TradesSell" Binding="{Binding Trades.Sell}" CanUserResize="False"
                                         IsReadOnly="True" Width="*"/>
+                    <DataGridTextColumn Header="Volume" Binding="{Binding Trades.Volume}" CanUserResize="False"
+                                        IsReadOnly="True" Width="*"/>
                     <DataGridTextColumn Header="Обновлено" Binding="{Binding LastUpdate}" CanUserResize="False"
                                         IsReadOnly="True" Width="*"/>
                 </DataGrid.Columns>
@@ -53,7 +55,7 @@
                             <DataGrid x:Name="klinesGrid" Style="{StaticResource DataGridStyle}" HorizontalScrollBarVisibility="Auto"
                                             Background="WhiteSmoke" ItemsSource="{Binding Klines}" FontSize="9" HorizontalAlignment="Stretch">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Период" Binding="{Binding Period}" CanUserResize="False"
+                                    <DataGridTextColumn Header="Период" Binding="{Binding Interval}" CanUserResize="False"
                                                 IsReadOnly="True" Width="100"/>
                                     <DataGridTextColumn Header="День" Binding="{Binding Day}" CanUserResize="False"
                                                 IsReadOnly="True" Width="100"/>

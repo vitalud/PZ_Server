@@ -1,8 +1,10 @@
 ﻿using DynamicData;
+using NUnit.Framework.Internal.Commands;
 using ProjectZeroLib.Instruments;
 using ReactiveUI;
 using Server.Models;
 using System.Collections.ObjectModel;
+using System.Reactive;
 using System.Reactive.Linq;
 
 namespace Server.ViewModels
@@ -11,11 +13,11 @@ namespace Server.ViewModels
     {
         private readonly QuikModel _quik;
 
-        private string _status;
-        public string Status
+        private bool _isConnected;
+        public bool IsConnected
         {
-            get => _status;
-            set => this.RaiseAndSetIfChanged(ref _status, value);
+            get => _isConnected;
+            set => this.RaiseAndSetIfChanged(ref _isConnected, value);
         }
 
         private readonly ReadOnlyObservableCollection<Instrument> _instruments;
@@ -25,10 +27,9 @@ namespace Server.ViewModels
         {
             _quik = quik;
 
-            Status = _quik.Status;
-            this.WhenAnyValue(x => x.Status)
-                .Skip(1)
-                .Subscribe(value => _quik.Status = value);
+            IsConnected = _quik.IsConnected;
+            _quik.WhenAnyValue(x => x.IsConnected)
+                .Subscribe(value => IsConnected = value);
 
             _quik.Instruments.Connect()
                 .Bind(out _instruments)
