@@ -144,11 +144,8 @@ namespace Server.Models
 
         private IXLWorksheet GetBurseSheet(string name)
         {
-            IXLWorksheet sheet = null;
-            if (name.Equals("Okx")) sheet = _workbook.Worksheet(2);
-            else if (name.Equals("Binance")) sheet = _workbook.Worksheet(3);
-            else if (name.Equals("Bybit")) sheet = _workbook.Worksheet(4);
-            else if (name.Equals("Quik")) sheet = _workbook.Worksheet(5);
+            var num = int.Parse(name[..1]);
+            IXLWorksheet sheet = _workbook.Worksheet(num + 2);
             return sheet;
         }
 

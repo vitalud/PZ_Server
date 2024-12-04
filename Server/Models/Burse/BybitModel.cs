@@ -49,6 +49,7 @@ namespace Server.Models.Burse
         {
             foreach (var inst in Instruments.Items)
                 await Subscribe(inst);
+            await PrepareIndicators();
         }
         protected override async Task Subscribe(Instrument instrument)
         {
@@ -96,6 +97,23 @@ namespace Server.Models.Burse
             catch
             {
                 Disconnect();
+            }
+        }
+        private async Task PrepareIndicators()
+        {
+            if (_rest is BybitRestClient rest)
+            {
+                var last = await rest.V5Api.ExchangeData.GetKlinesAsync(Category.Spot, "BTCUSDT", KlineInterval.OneMinute, limit: 60);
+                if (last.Success)
+                {
+                    var stock = Instruments.Items.FirstOrDefault(x => x.Name.Id.Equals("BTCUSDT")
+                    && x.Name.Type.Equals("Spot")
+                    && x.Burse.Equals(BurseName.Bybit));
+                    if (stock != null)
+                    {
+                        foreach (var kline in last.Data.List) stock.Other.Last60Close.Add(kline.ClosePrice);
+                    }
+                }
             }
         }
         private async void KlineDataHandler(DataEvent<IEnumerable<BybitKlineUpdate>> data, KlineInterval period, string type)
