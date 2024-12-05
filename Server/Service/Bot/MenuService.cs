@@ -182,7 +182,7 @@ namespace Server.Service.Bot
                 {
                     new []
                     {
-                        InlineKeyboardButton.WithPayment("Pay")
+                        InlineKeyboardButton.WithPay("Pay")
                     },
                     new []
                     {

@@ -15,7 +15,7 @@
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Код" Binding="{Binding Code}" CanUserResize="False"
                                         IsReadOnly="True" Width="100"/>
-                <DataGridTextColumn Header="Лимит" Binding="{Binding Signal.Status}" CanUserResize="False"
+                <DataGridTextColumn Header="Сигнал" Binding="{Binding Signal.Status}" CanUserResize="False"
                                         IsReadOnly="True" Width="*"/>
             </DataGrid.Columns>
         </DataGrid>

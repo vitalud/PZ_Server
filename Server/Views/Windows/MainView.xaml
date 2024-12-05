@@ -13,7 +13,8 @@
         WindowStyle="None"
         AllowsTransparency="True"
         BorderBrush="LightGray"
-        Background="WhiteSmoke">
+        Background="WhiteSmoke"
+        Title="Сервер">
     <Window.Resources>
         <DataTemplate DataType="{x:Type vm:BursesViewModel}">
             <local:BursesControl/>
@@ -41,6 +42,7 @@
         <Grid Name="TopMenu" Grid.Row="0" Background="Transparent" 
               MouseDown="TopMenu_MouseDown">
             <DockPanel>
+                <Label Content="Сервер"/>
                 <Button Style="{StaticResource TopMenuButton}" Click="CloseWindow" Content="X"/>
                 <Button Style="{StaticResource TopMenuButton}" Click="MaximizeWindow" Content="[]"/>
                 <Button Style="{StaticResource TopMenuButton}" Click="MinimizeWindow" Content="_">
