@@ -105,7 +105,7 @@ namespace Server.Models
                 var stock = _instrumentService.QuikInstruments.Items.FirstOrDefault(x => x.Name.Id.Equals(indicators.SecCode) & x.Name.Type.Equals(indicators.ClassCode));
                 if (stock == null) 
                 {
-                    var instrument = new Instrument(BurseName.Quik, new InstrumentName(indicators.SecCode))
+                    var instrument = new Instrument(BurseName.Quik, new InstrumentName(indicators.SecCode), _instrumentService.Logging)
                     {
                         IsActive = true,
                         Name = 

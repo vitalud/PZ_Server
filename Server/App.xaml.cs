@@ -34,7 +34,7 @@ namespace Server
 
             builder.RegisterType<TcpConnector>().As<Connector, TcpConnector>().SingleInstance();
             builder.RegisterType<TelegramBot>().SingleInstance();
-            builder.RegisterType<InstrumentService>().SingleInstance();
+            builder.RegisterType<InstrumentService>().SingleInstance().WithParameter("logging", false);
             builder.RegisterType<Strategies>().SingleInstance();
             builder.RegisterType<StrategiesViewModel>().AsSelf().SingleInstance();
 
