@@ -9,66 +9,49 @@
     <Grid>
         <DockPanel>
             <StackPanel DockPanel.Dock="Top"
-                        Orientation="Horizontal">
-                <Label Content="Quik:"></Label>
-                <Label Content="{Binding IsConnected}"
-                       Margin="5,0"></Label>
+                        Orientation="Horizontal"
+                        Margin="5">
+                <TextBlock Text="Статус Quik:" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding IsConnected}" VerticalAlignment="Center"
+                           Style="{StaticResource BoolTextBlockStyle}"
+                           Margin="5, 0"/>
             </StackPanel>
 
             <DataGrid ItemsSource="{Binding Instruments}" 
                           Style="{StaticResource DataGridStyle}" 
-                          HorizontalScrollBarVisibility="Auto"
                           DockPanel.Dock="Top" 
                           Margin="5" 
                           FontSize="9">
                 <DataGrid.Columns>
-                    <DataGridTextColumn Header="Статус" Binding="{Binding IsActive}" CanUserResize="False"
-                                        IsReadOnly="True" Width="*"/>
-                    <DataGridTextColumn Header="Инструмент" Binding="{Binding Name.Id}" CanUserResize="False"
-                                        IsReadOnly="True" Width="*"/>
-                    <DataGridTextColumn Header="Тип" Binding="{Binding Name.Type}" CanUserResize="False"
-                                        IsReadOnly="True" Width="*"/>
-                    <DataGridTextColumn Header="AllAsks" Binding="{Binding Orders.AllAsks}" CanUserResize="False"
-                                        IsReadOnly="True" Width="*"/>
-                    <DataGridTextColumn Header="BestAsks" Binding="{Binding Orders.BestAsks}" CanUserResize="False"
-                                        IsReadOnly="True" Width="*"/>
-                    <DataGridTextColumn Header="NumAsks" Binding="{Binding Orders.NumAsks}" CanUserResize="False"
-                                        IsReadOnly="True" Width="*"/>
-                    <DataGridTextColumn Header="AllBids" Binding="{Binding Orders.AllBids}" CanUserResize="False"
-                                        IsReadOnly="True" Width="*"/>
-                    <DataGridTextColumn Header="BestBids" Binding="{Binding Orders.BestBids}" CanUserResize="False"
-                                        IsReadOnly="True" Width="*"/>
-                    <DataGridTextColumn Header="NumBids" Binding="{Binding Orders.NumBids}" CanUserResize="False"
-                                        IsReadOnly="True" Width="*"/>
-                    <DataGridTextColumn Header="TradesBuy" Binding="{Binding Trades.Buy}" CanUserResize="False"
-                                        IsReadOnly="True" Width="*"/>
-                    <DataGridTextColumn Header="TradesSell" Binding="{Binding Trades.Sell}" CanUserResize="False"
-                                        IsReadOnly="True" Width="*"/>
-                    <DataGridTextColumn Header="Volume" Binding="{Binding Trades.Volume}" CanUserResize="False"
-                                        IsReadOnly="True" Width="*"/>
-                    <DataGridTextColumn Header="Обновлено" Binding="{Binding LastUpdate}" CanUserResize="False"
-                                        IsReadOnly="True" Width="*"/>
+                    <DataGridTextColumn Header="Статус" Binding="{Binding IsActive}"/>
+                    <DataGridTextColumn Header="Инструмент" Binding="{Binding Name.Id}"/>
+                    <DataGridTextColumn Header="Тип" Binding="{Binding Name.Type}"/>
+                    <DataGridTextColumn Header="AllAsks" Binding="{Binding Orders.AllAsks}"/>
+                    <DataGridTextColumn Header="BestAsks" Binding="{Binding Orders.BestAsks}"/>
+                    <DataGridTextColumn Header="NumAsks" Binding="{Binding Orders.NumAsks}"/>
+                    <DataGridTextColumn Header="AllBids" Binding="{Binding Orders.AllBids}"/>
+                    <DataGridTextColumn Header="BestBids" Binding="{Binding Orders.BestBids}"/>
+                    <DataGridTextColumn Header="NumBids" Binding="{Binding Orders.NumBids}"/>
+                    <DataGridTextColumn Header="TradesBuy" Binding="{Binding Trades.Buy}"/>
+                    <DataGridTextColumn Header="TradesSell" Binding="{Binding Trades.Sell}"/>
+                    <DataGridTextColumn Header="Volume" Binding="{Binding Trades.Volume}"/>
+                    <DataGridTextColumn Header="Обновлено" Binding="{Binding LastUpdate}"/>
                 </DataGrid.Columns>
                 <DataGrid.RowDetailsTemplate>
                     <DataTemplate>
                         <Grid>
-                            <DataGrid x:Name="klinesGrid" Style="{StaticResource DataGridStyle}" HorizontalScrollBarVisibility="Auto"
-                                            Background="WhiteSmoke" ItemsSource="{Binding Klines}" FontSize="9" HorizontalAlignment="Stretch">
+                            <DataGrid x:Name="klinesGrid" 
+                                      Style="{StaticResource DataGridStyle}" 
+                                      ItemsSource="{Binding Klines}" 
+                                      FontSize="9">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Период" Binding="{Binding Interval}" CanUserResize="False"
-                                                IsReadOnly="True" Width="100"/>
-                                    <DataGridTextColumn Header="День" Binding="{Binding Day}" CanUserResize="False"
-                                                IsReadOnly="True" Width="100"/>
-                                    <DataGridTextColumn Header="Время" Binding="{Binding Time}" CanUserResize="False"
-                                                IsReadOnly="True" Width="100"/>
-                                    <DataGridTextColumn Header="Open" Binding="{Binding Open}" CanUserResize="False"
-                                                IsReadOnly="True" Width="100"/>
-                                    <DataGridTextColumn Header="High" Binding="{Binding High}" CanUserResize="False"
-                                                IsReadOnly="True" Width="100"/>
-                                    <DataGridTextColumn Header="Low" Binding="{Binding Low}" CanUserResize="False"
-                                                IsReadOnly="True" Width="100"/>
-                                    <DataGridTextColumn Header="Close" Binding="{Binding Close}" CanUserResize="False"
-                                                IsReadOnly="True" Width="100"/>
+                                    <DataGridTextColumn Header="Период" Binding="{Binding Interval}"/>
+                                    <DataGridTextColumn Header="День" Binding="{Binding Day}"/>
+                                    <DataGridTextColumn Header="Время" Binding="{Binding Time}"/>
+                                    <DataGridTextColumn Header="Open" Binding="{Binding Open}"/>
+                                    <DataGridTextColumn Header="High" Binding="{Binding High}"/>
+                                    <DataGridTextColumn Header="Low" Binding="{Binding Low}"/>
+                                    <DataGridTextColumn Header="Close" Binding="{Binding Close}"/>
                                 </DataGrid.Columns>
                             </DataGrid>
                         </Grid>

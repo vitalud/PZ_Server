@@ -7,22 +7,21 @@
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
         <DockPanel>
+            
             <StackPanel Orientation="Horizontal" DockPanel.Dock="Top">
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Top" Margin="10,5">
                     <TextBlock Text="Статус: "></TextBlock>
                     <TextBlock Text="{Binding IsActive}" Style="{StaticResource BoolTextBlockStyle}"></TextBlock>
                 </StackPanel>
+            </StackPanel>
+            
+            <StackPanel Orientation="Horizontal" DockPanel.Dock="Top">
                 <StackPanel Orientation="Horizontal" DockPanel.Dock="Top" Margin="10,5">
                     <TextBlock Text="Количество активных подключений: "></TextBlock>
                     <TextBlock Text="{Binding ActiveConnections}"></TextBlock>
                 </StackPanel>
             </StackPanel>
-            <StackPanel Orientation="Horizontal" DockPanel.Dock="Top">
-                <StackPanel Orientation="Horizontal" DockPanel.Dock="Top" Margin="10,5">
-                    <TextBlock Text="Телеграм бот: "></TextBlock>
-                    <Button Content="Старт" Margin="10,0" Command="{Binding StartTelegram}" />
-                </StackPanel>
-            </StackPanel>
+            
             <UniformGrid DockPanel.Dock="Top" Rows="1" Columns="3">
                 <GroupBox Style="{StaticResource GroupBoxStyle}" Header="Tcp">
                     <ListBox ItemsSource="{Binding ConnectorLogs}"

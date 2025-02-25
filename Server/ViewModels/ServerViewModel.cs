@@ -2,38 +2,31 @@
 using ReactiveUI;
 using Server.Models;
 using System.Collections.ObjectModel;
-using System.Reactive;
 
 namespace Server.ViewModels
 {
-    public class ServerViewModel : ReactiveObject
+    public partial class ServerViewModel : ReactiveObject
     {
         private readonly ServerModel _server;
-        public bool IsActive
-        {
-            get => _server.Connector.IsActive;
-        }
-        public int ActiveConnections
-        {
-            get => _server.Connector.ActiveConnections;
-        }
 
         private readonly ReadOnlyObservableCollection<string> _errorLogs;
-        public ReadOnlyObservableCollection<string> ErrorLogs => _errorLogs;
-
         private readonly ReadOnlyObservableCollection<string> _connectorLogs;
-        public ReadOnlyObservableCollection<string> ConnectorLogs => _connectorLogs;
-
         private readonly ReadOnlyObservableCollection<string> _telegramLogs;
+
+        public ServerModel Server => _server;
+        public ReadOnlyObservableCollection<string> ErrorLogs => _errorLogs;
+        public ReadOnlyObservableCollection<string> ConnectorLogs => _connectorLogs;
         public ReadOnlyObservableCollection<string> TelegramLogs => _telegramLogs;
 
-        public ReactiveCommand<Unit, Unit> StartTelegram { get; }
+        public bool IsActive => Server.Connector.IsActive;
+        public int ActiveConnections => Server.Connector.ActiveConnections;
 
         public ServerViewModel(ServerModel server)
         {
             _server = server;
-            var connector = _server.Connector;
-            var telegram = _server.Telegram;
+            var connector = Server.Connector;
+            var telegram = Server.Telegram;
+
             connector.Logs.Connect()
                .Bind(out _connectorLogs)
                .Subscribe();
@@ -43,8 +36,12 @@ namespace Server.ViewModels
             telegram.Errors.Connect()
                      .Bind(out _errorLogs)
                      .Subscribe();
-
-            StartTelegram = ReactiveCommand.Create(() => _server.Start());
         }
+
+        /// <summary>
+        /// Отправляет сообщение об ошибке в чат бот.
+        /// </summary>
+        /// <param name="ex"></param>
+        public async void SendErrorMessage(Exception ex) => await Server.SendErrorMessage(ex);
     }
 }

@@ -1,18 +1,18 @@
 ﻿using DynamicData;
-using ProjectZeroLib;
 using ReactiveUI;
+using Strategies.Strategies;
 using System.Collections.ObjectModel;
 
 namespace Server.ViewModels
 {
-    public class StrategiesViewModel : ReactiveObject
+    public partial class StrategiesViewModel : ReactiveObject
     {
-        private readonly Strategies _strategies;
+        private readonly StrategiesRepository _strategies;
 
         private readonly ReadOnlyObservableCollection<Strategy> _items;
         public ReadOnlyObservableCollection<Strategy> Items => _items;
 
-        public StrategiesViewModel(Strategies strategies)
+        public StrategiesViewModel(StrategiesRepository strategies)
         {
             _strategies = strategies;
             _strategies.StrategiesList.Connect()

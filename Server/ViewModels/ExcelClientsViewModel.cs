@@ -1,7 +1,6 @@
-﻿using Server.Models;
-using Server.Service.Abstract;
+﻿using Server.Service.Abstract;
 
 namespace Server.ViewModels
 {
-    public class ExcelClientsViewModel(ExcelClientsModel excelModel) : ClientsViewModel(excelModel) { }
+    public partial class ExcelClientsViewModel(ClientsModel excelModel) : ClientsViewModel(excelModel) { }
 }

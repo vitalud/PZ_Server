@@ -1,59 +1,65 @@
 ﻿using DynamicData;
-using ProjectZeroLib;
+using ProjectZeroLib.Utils;
 using ReactiveUI;
 using Server.Service.Abstract;
+using System.Reactive.Linq;
 
 namespace Server.Models
 {
-    public class MainModel : ReactiveObject
+    /// <summary>
+    /// Базовый класс, в котором собраны все сервисы.
+    /// </summary>
+    public partial class MainModel : ReactiveObject
     {
         private readonly ServerModel _server;
         private readonly ClientsModel _clients;
-        private readonly BursesModel _burses;
+        private readonly object _locker = new();
 
-        private static Timer _timer;
-
-        public MainModel(ServerModel server, ClientsModel clients, BursesModel burses)
+        public MainModel(ServerModel server, ClientsModel clients)
         {
             _server = server;
             _clients = clients;
-            _burses = burses;
 
-            SetupTimer();
+            Task.Run(StartDailyCheck);
         }
 
-        private void SetupTimer()
+        /// <summary>
+        /// Запускает со следующего дня после запуска ежедневную задачу
+        /// по сохранению логов.
+        /// </summary>
+        /// <returns></returns>
+        private async Task StartDailyCheck()
         {
-            var currentTime = DateTime.Now;
-            var millisecondsRemaining = 24 * 60 * 60 * 1000 - currentTime.TimeOfDay.TotalMilliseconds;
-            var timeToNextDay = TimeSpan.FromMilliseconds(millisecondsRemaining);
-            _timer = new Timer(_ => Logger.UiInvoke(SaveLogs), null, timeToNextDay, TimeSpan.FromDays(1));
+            var now = DateTime.UtcNow;
+            var nextRun = now.Date.AddDays(1);
+            var initialDelay = nextRun - now;
+
+            await Task.Delay(initialDelay);
+
+            Observable.Interval(TimeSpan.FromDays(1))
+                .Subscribe(_ => SaveLogs());
         }
 
+        /// <summary>
+        /// Собирает коллекцию логов из сервисов, сохраняет и очищает.
+        /// </summary>
         public void SaveLogs()
         {
-            lock (this)
+            lock (_locker)
             {
-                Dictionary<string, SourceList<string>> logs = [];
-                logs.Add("connector", _server.Connector.Logs);
-                logs.Add("telegram", _server.Telegram.Messages);
-                logs.Add("clients", _clients.ClientLogs);
+                var logs = new Dictionary<string, SourceList<string>>
+                {
+                    { "connector", _server.Connector.Logs },
+                    { "telegram", _server.Telegram.Messages },
+                    { "clients", _clients.Logs }
+                };
+
                 Logger.BackupLog(logs);
+
                 _server.Connector.Logs.Clear();
                 _server.Telegram.Messages.Clear();
-                _clients.ClientLogs.Clear();
+                _clients.Logs.Clear();
             }
-        }
-
-        public void Test()
-        {
-            _burses.Test();
-        }
-
-        private async Task DelayedTask()
-        {
-            await Task.Delay(5000);
-            SaveLogs();
         }
     }
 }

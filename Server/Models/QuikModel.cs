@@ -1,62 +1,63 @@
 ﻿using DynamicData;
-using ProjectZeroLib;
 using ProjectZeroLib.Enums;
-using ProjectZeroLib.Instruments;
+using ProjectZeroLib.Utils;
 using ReactiveUI;
-using Server.Service.Bot;
+using Server.Service;
+using Strategies.Instruments;
 using System.Net;
 using System.Net.Sockets;
 using System.Reactive.Linq;
+using System.Reactive.Subjects;
 using System.Text.Json;
-using CustomInterval = ProjectZeroLib.Enums.KlineInterval;
 
 namespace Server.Models
 {
-    public class QuikModel : ReactiveObject
+    /// <summary>
+    /// Класс представляет собой взаимодействие с биржей Quik.
+    /// </summary>
+    /// <param name="instruments"></param>
+    public partial class QuikModel : ReactiveObject
     {
-        private static readonly Dictionary<string, CustomInterval> intervalMapping = new()
-        {
-            { "M1", CustomInterval.OneMinute },
-            { "M5", CustomInterval.FiveMinutes },
-            { "M15", CustomInterval.FifteenMinutes },
-            { "H1", CustomInterval.OneHour },
-            { "H4", CustomInterval.FourHours },
-            { "D1", CustomInterval.OneDay }
-        };
-
-        private readonly TelegramBot _telegram;
-        private readonly InstrumentService _instrumentService;
+        private readonly InstrumentRepository _instrumentRepository;
 
         private readonly TcpListener _listener = new(IPAddress.Parse("127.0.0.1"), 1021);
         private TcpClient? _quik;
 
-        private readonly IObservableList<Instrument> _instruments;
-        public IObservableList<Instrument> Instruments => _instruments;
-
         private bool _isConnected;
+
+        private readonly SourceList<Instrument> _instruments = new();
+
+        private readonly Subject<Exception> _exceptions = new();
+        public IObservable<Exception> Exceptions => _exceptions.AsObservable();
+
         public bool IsConnected
         {
             get => _isConnected;
             set => this.RaiseAndSetIfChanged(ref _isConnected, value);
         }
+        public SourceList<Instrument> Instruments => _instruments;
 
-
-        public QuikModel(InstrumentService instrumentService, TelegramBot telegram)
+        public QuikModel(InstrumentRepository instruments)
         {
-            _instrumentService = instrumentService;
-            _telegram = telegram;
+            _instrumentRepository = instruments;
 
-            _instruments = _instrumentService.QuikInstruments.Connect()
-                .AsObservableList();
-
-            Start();
+            var filtered = _instrumentRepository.Instruments.Items.Where(x => x.Burse.Equals(BurseName.Quik));
+            Instruments.AddRange(filtered);
         }
 
-        private void Start()
+        /// <summary>
+        /// Запускает TcpListener на прослушивание подключения со стороны Quik.
+        /// </summary>
+        public void Start()
         {
             _listener.Start();
             Task.Run(GetQuikAsync);
         }
+
+        /// <summary>
+        /// Принимает подключение со стороны Quik.
+        /// </summary>
+        /// <returns></returns>
         private async Task GetQuikAsync()
         {
             while (true)
@@ -65,10 +66,22 @@ namespace Server.Models
                 {
                     _quik = await _listener.AcceptTcpClientAsync();
                     IsConnected = true;
-                    _ = HandleQuikClientAsync();
+                    try
+                    {
+                        await HandleQuikClientAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        _exceptions.OnNext(ex);
+                    }
                 }
             }
         }
+
+        /// <summary>
+        /// Обрабатывает входящие сообщения от Quik.
+        /// </summary>
+        /// <returns></returns>
         private async Task HandleQuikClientAsync()
         {
             if (_quik != null)
@@ -81,69 +94,62 @@ namespace Server.Models
                         var message = await TcpService.ReadMessageAsync(stream);
                         if (message != null)
                         {
-                            await GetQuikData(message);
+                            GetQuikData(message);
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    await _telegram.SendQuikErrorMessage();
+                    throw new Exception("Разрыв соединения с Quik.", ex);
                 }
                 finally
                 {
                     _quik.Dispose();
-                    await Logger.UiInvoke(() => _instrumentService.QuikInstruments.Clear());
                     IsConnected = false;
                 }
             }
         }
-        private async Task GetQuikData(string data)
-        {
-            var indicators = JsonSerializer.Deserialize<QuikIndicators>(data);
-            if (indicators != null)
-            {
-                var stock = _instrumentService.QuikInstruments.Items.FirstOrDefault(x => x.Name.Id.Equals(indicators.SecCode) & x.Name.Type.Equals(indicators.ClassCode));
-                if (stock == null) 
-                {
-                    var instrument = new Instrument(BurseName.Quik, new InstrumentName(indicators.SecCode), _instrumentService.Logging)
-                    {
-                        IsActive = true,
-                        Name = 
-                        { 
-                            Type = indicators.ClassCode 
-                        }
-                    };
-                    await Logger.UiInvoke(() => _instrumentService.QuikInstruments.Add(instrument));
-                    stock = instrument;
-                }
 
+        /// <summary>
+        /// Преобразует данные от Quik и добавляет/изменяет данные по инструменту.
+        /// </summary>
+        /// <param name="message"></param>
+        /// <returns></returns>
+        private void GetQuikData(string message)
+        {
+            var data = JsonSerializer.Deserialize<QuikIndicators>(message);
+            if (data != null)
+            {
+                var stock = GetQuikStock(data);
                 if (stock != null)
                 {
-                    var period = ParseQuikInterval(indicators.Interval);
+                    var period = IntervalParser.ParseQuikInterval(data.Interval);
                     var kline = stock.Klines.Find(x => x.Interval.Equals(period));
                     if (kline != null)
                     {
-                        lock (stock)
+                        stock.LastUpdate = DateTime.Now;
+
+                        kline.Day = data.Day;
+                        kline.Time = data.Time;
+
+                        kline.Open = data.Open;
+                        kline.High = data.High;
+                        kline.Low = data.Low;
+                        kline.Close = data.Close;
+
+                        if (period == KlineInterval.OneMinute)
                         {
-                            stock.LastUpdate = DateTime.Now;
+                            stock.Other.Last60Close.Add(data.Close);
 
-                            kline.Open = indicators.Open;
-                            kline.High = indicators.High;
-                            kline.Low = indicators.Low;
-                            kline.Close = indicators.Close;
-
-                            stock.Orders.AllAsks = indicators.AllAsks;
-                            stock.Orders.AllBids = indicators.AllBids;
-                            stock.Orders.NumAsks = indicators.NumAsks;
-                            stock.Orders.NumBids = indicators.NumBids;
-                            stock.Orders.BestAsks = indicators.BestAsks;
-                            stock.Orders.BestBids = indicators.BestBids;
-                            stock.Trades.Buy = indicators.TradesBuy;
-                            stock.Trades.Sell = indicators.TradesSell;
-                            stock.Trades.Volume = indicators.Volume;
-
-                            kline.Day = indicators.Day;
-                            kline.Time = indicators.Time;
+                            stock.Orders.AllAsks = data.AllAsks;
+                            stock.Orders.AllBids = data.AllBids;
+                            stock.Orders.NumAsks = data.NumAsks;
+                            stock.Orders.NumBids = data.NumBids;
+                            stock.Orders.BestAsks = data.BestAsks;
+                            stock.Orders.BestBids = data.BestBids;
+                            stock.Trades.Buy = data.TradesBuy;
+                            stock.Trades.Sell = data.TradesSell;
+                            stock.Trades.Volume = data.Volume;
 
                             stock.SignalData.Complete = true;
                         }
@@ -151,9 +157,20 @@ namespace Server.Models
                 }
             }
         }
-        private static CustomInterval ParseQuikInterval(string interval)
+        
+        /// <summary>
+        /// Возвращает инструмент Quik из базы. В случае срочных контрактов
+        /// сравнивает только первые два символа инструмента.
+        /// </summary>
+        /// <param name="data"></param>
+        /// <returns></returns>
+        private Instrument? GetQuikStock(QuikIndicators data)
         {
-            return intervalMapping.TryGetValue(interval, out var result) ? result : CustomInterval.None;
+            var name = data.ClassCode == "SPBFUT" ? data.SecCode[..2] : data.SecCode;
+            var stock = Instruments.Items.FirstOrDefault(x => 
+                x.Name.FirstName.Equals(name) && 
+                x.Name.Type.Equals(data.ClassCode));
+            return stock;
         }
     }
 }

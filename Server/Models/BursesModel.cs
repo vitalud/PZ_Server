@@ -2,11 +2,5 @@
 
 namespace Server.Models
 {
-    public class BursesModel : ReactiveObject
-    {
-        public void Test()
-        {
-            
-        }
-    }
+    public partial class BursesModel : ReactiveObject { }
 }

@@ -14,7 +14,8 @@
         AllowsTransparency="True"
         BorderBrush="LightGray"
         Background="WhiteSmoke"
-        Title="Сервер">
+        Title="ProjectZero">
+    
     <Window.Resources>
         <DataTemplate DataType="{x:Type vm:BursesViewModel}">
             <local:BursesControl/>
@@ -42,7 +43,7 @@
         <Grid Name="TopMenu" Grid.Row="0" Background="Transparent" 
               MouseDown="TopMenu_MouseDown">
             <DockPanel>
-                <Label Content="Сервер"/>
+                <Label Content="ProjectZero"/>
                 <Button Style="{StaticResource TopMenuButton}" Click="CloseWindow" Content="X"/>
                 <Button Style="{StaticResource TopMenuButton}" Click="MaximizeWindow" Content="[]"/>
                 <Button Style="{StaticResource TopMenuButton}" Click="MinimizeWindow" Content="_">
@@ -50,43 +51,32 @@
             </DockPanel>
         </Grid>
 
-        <Grid x:Name="Content" Grid.Row="1" Background="Transparent">
+        <Grid x:Name="gridContent" Grid.Row="1">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="120"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Grid Grid.Column="0" Background="WhiteSmoke">
-                <Border BorderThickness="0,0,1,0"
-                    BorderBrush="Gray">
-
-                </Border>
+            <Grid Grid.Column="0">
                 <StackPanel Orientation="Vertical" DockPanel.Dock="Left">
                     <Button Command="{Binding ShowServerCommand}" 
                         Style="{StaticResource MainMenuLeftButton}" 
                         Content="Сервер"/>
-                    <Separator Height="1" Background="Gray"></Separator>
                     <Button Command="{Binding ShowClientsCommand}"
                         Style="{StaticResource MainMenuLeftButton}" 
                         Content="Клиентская база"/>
-                    <Separator Height="1" Background="Gray"></Separator>
                     <Button Command="{Binding ShowBursesCommand}"
                         Style="{StaticResource MainMenuLeftButton}" 
                         Content="Криптобиржи"/>
-                    <Separator Height="1" Background="Gray"></Separator>
                     <Button Command="{Binding ShowQuikCommand}"
                         Style="{StaticResource MainMenuLeftButton}" 
                         Content="Quik"/>
-                    <Separator Height="1" Background="Gray"></Separator>
                     <Button Command="{Binding ShowStrategiesCommand}"
                         Style="{StaticResource MainMenuLeftButton}" 
                         Content="Стратегии"/>
                 </StackPanel>
-                <Button Command="{Binding TestCommand}"
-                        Style="{StaticResource MainMenuLeftButton}" 
-                        Content="Тест"
-                        VerticalAlignment="Bottom"/>
             </Grid>
+
             <Grid Grid.Column="1">
                 <ContentPresenter Content="{Binding CurrentViewModel}" 
                               HorizontalAlignment="Stretch" 

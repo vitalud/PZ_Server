@@ -1,42 +1,20 @@
 ﻿using ProjectZeroLib.Enums;
+using Server.Service.Enums;
+using Server.Service.UserClient;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace Server.Service.Bot
 {
-    public enum Callback
-    {
-        Name,
-        Type,
-        Subtype,
-        Sub,
-        Unsub,
-        Next,
-        Previous,
-        Done,
-        Back,
-        Correct,
-        Edit
-    }
-    public class StrategyMenu(string name, List<TypesMenu> types)
-    {
-        public string Name { get; set; } = name;
-        public List<TypesMenu> Types { get; set; } = types;
-    }
-
-    public class TypesMenu(string name, string code, string[] subtypes)
-    {
-        public string Name { get; set; } = name;
-        public string Code { get; set; } = code;
-        public string[] Subtypes { get; set; } = subtypes;
-    }
-
+    /// <summary>
+    /// Класс, описывающий методы создания интерфейсов для сообщений в чат боте.
+    /// </summary>
     public static class MenuService
     {
-        public readonly static List<StrategyMenu> StrategiesMenu;
+        public readonly static List<Subscription> Subscriptions = [];
+
         static MenuService()
         {
-            StrategiesMenu = [];
-            StrategiesMenu.Add(new(
+            Subscriptions.Add(new(
                 BurseName.Okx.ToString(),
                 [
                     new("1", "1",
@@ -49,7 +27,8 @@ namespace Server.Service.Bot
                     ]),
                 ]
             ));
-            StrategiesMenu.Add(new(
+
+            Subscriptions.Add(new(
                 BurseName.Binance.ToString(),
                 [
                     new("1", "1",
@@ -62,7 +41,8 @@ namespace Server.Service.Bot
                     ]),
                 ]
             ));
-            StrategiesMenu.Add(new(
+
+            Subscriptions.Add(new(
                 BurseName.Bybit.ToString(),
                 [
                     new("1", "1",
@@ -75,7 +55,8 @@ namespace Server.Service.Bot
                     ]),
                 ]
             ));
-            StrategiesMenu.Add(new(
+
+            Subscriptions.Add(new(
                 BurseName.Quik.ToString(),
                 [
                     new("1", "1",
@@ -97,7 +78,7 @@ namespace Server.Service.Bot
         /// <param name="buttonsPerRow">Количество кнопок в ряду.</param>
         /// <param name="callback"></param>
         /// <returns></returns>
-        public static InlineKeyboardButton[][] GenerateButtons(string[] array, int buttonsPerRow = 1, string callback = null)
+        public static InlineKeyboardButton[][] GenerateButtons(string[] array, int buttonsPerRow = 1, string? callback = null)
         {
             var data = array.Select(x => InlineKeyboardButton.WithCallbackData(x, callback + x));
             if (buttonsPerRow == 0)
@@ -106,121 +87,100 @@ namespace Server.Service.Bot
                 return data.Chunk(buttonsPerRow).Select(c => c.ToArray()).ToArray();
         }
 
-        //Генератор кнопок для работы с подписками: buy - в поиске/просмотре стратегий; unsub - в инфо
-        public static InlineKeyboardMarkup GenerateStrategiesSubButtons(string callback, string name, Client client, string addition = null)
+        /// <summary>
+        /// Генератор кнопок для работы с подписками. Обрабатываются две коллекции подписок:
+        /// Первая при просмотре в магазине подписок, вторая при просмотре подписок в инфо.
+        /// </summary>
+        /// <param name="callback"></param>
+        /// <param name="name"></param>
+        /// <param name="client"></param>
+        /// <param name="addition"></param>
+        /// <returns></returns>
+        public static InlineKeyboardMarkup GenerateStrategiesSubButtons(string callback, string name, Client client, string? addition = null)
         {
             bool oneStrategy = false;
+            int count = 0;
 
-            InlineKeyboardMarkup inlineKeyboard = null;
             InlineKeyboardButton next = InlineKeyboardButton.WithCallbackData(">>", "move_next");
             InlineKeyboardButton back = InlineKeyboardButton.WithCallbackData("<<", "move_previous");
             InlineKeyboardButton act = InlineKeyboardButton.WithCallbackData(name, callback + addition);
 
-            //buy только для TempStrategies
             if (callback.Equals(GetCallbackString(Callback.Sub)))
             {
-                if (client.Telegram.Temp.Strategies.Count == 1) oneStrategy = true;
+                if (client.Telegram.Temp.Strategies.Count == 1)
+                    oneStrategy = true;
 
-                if (oneStrategy) //одна стратегия
-                {
-                    inlineKeyboard = new(new[]
-                    { new[] { act } });
-                }
-                else
-                {
-                    if (client.Telegram.Index == 0) //начало списка
-                    {
-                        inlineKeyboard = new(new[]
-                        { new[] { act }, new[] { next } });
-                    }
-                    else if (client.Telegram.Index == client.Telegram.Temp.Strategies.Count - 1 & client.Telegram.Temp.Strategies.Count > 1) //конец списка
-                    {
-                        inlineKeyboard = new(new[]
-                        { new[] { act }, new[] { back } });
-                    }
-                    else //промежуточные значения
-                    {
-                        inlineKeyboard = new(new[]
-                        { new[] { act }, new[] { back, next } });
-                    }
-                }
+                count = client.Telegram.Temp.Strategies.Count;
             }
-            //unsub только для Strategies
             else if (callback.Equals(GetCallbackString(Callback.Unsub)))
             {
-                if (client.Data.Strategies.Count == 1) oneStrategy = true;
+                if (client.Data.Strategies.Count == 1)
+                    oneStrategy = true;
 
-                if (oneStrategy) //одна стратегия
-                {
-                    inlineKeyboard = new(new[]
-                    { new[] { act } });
-                }
-                else
-                {
-                    if (client.Telegram.Index == 0) //начало списка
-                    {
-                        inlineKeyboard = new(new[]
-                        { new[] { act }, new[] { next } });
-                    }
-                    else if (client.Telegram.Index == client.Data.Strategies.Count - 1 & client.Data.Strategies.Count > 1) //конец списка
-                    {
-                        inlineKeyboard = new(new[]
-                        { new[] { act }, new[] { back } });
-                    }
-                    else //промежуточные значения
-                    {
-                        inlineKeyboard = new(new[]
-                        { new[] { act }, new[] { back, next } });
-                    }
-                }
+                count = client.Data.Strategies.Count;
             }
+
+            InlineKeyboardMarkup inlineKeyboard;
+            if (oneStrategy)
+                inlineKeyboard = new([[act]]);
+            else
+            {
+                if (client.Telegram.Index == 0)
+                    inlineKeyboard = new([[act], [next]]);
+                else if (client.Telegram.Index.Equals(count - 1) && count > 1)
+                    inlineKeyboard = new([[act], [back]]);
+                else
+                    inlineKeyboard = new([[act], [back, next]]);
+            }
+
             return inlineKeyboard;
         }
+
+        /// <summary>
+        /// Генерация кнопок оплаты.
+        /// </summary>
+        /// <returns></returns>
         public static InlineKeyboardMarkup GeneratePaymentButtons()
         {
-            InlineKeyboardMarkup inlineKeyboard = new(new[]
-                {
-                    new []
-                    {
-                        InlineKeyboardButton.WithPay("Pay")
-                    },
-                    new []
-                    {
-                        InlineKeyboardButton.WithCallbackData("Назад", GetCallbackString(Callback.Back))
-                    }
-                });
+            InlineKeyboardMarkup inlineKeyboard = new([
+                    [ InlineKeyboardButton.WithPay("Pay") ],
+                    [ InlineKeyboardButton.WithCallbackData("Назад", GetCallbackString(Callback.Back)) ]
+                ]);
             return inlineKeyboard;
         }
+
+        /// <summary>
+        /// Генерация кнопок подтверждения.
+        /// </summary>
+        /// <returns></returns>
         public static InlineKeyboardMarkup GenerateConfirmationButtons()
         {
-            InlineKeyboardMarkup inlineKeyboard = new(new[]
-                {
-                new []
-                {
-                    InlineKeyboardButton.WithCallbackData("Верно", GetCallbackString(Callback.Correct)),
-                },
-                new []
-                {
-                    InlineKeyboardButton.WithCallbackData("Изменить", GetCallbackString(Callback.Edit)),
-                }
-            });
+            InlineKeyboardMarkup inlineKeyboard = new([
+                [ InlineKeyboardButton.WithCallbackData("Верно", GetCallbackString(Callback.Correct)) ],
+                [ InlineKeyboardButton.WithCallbackData("Изменить", GetCallbackString(Callback.Edit)) ]
+            ]);
             return inlineKeyboard;
         }
+
+        /// <summary>
+        /// Генерация кнопок продолжения после приобритения подписки.
+        /// </summary>
+        /// <returns></returns>
         public static InlineKeyboardMarkup GenerateContinueButtons()
         {
-            InlineKeyboardMarkup inlineKeyboard = new(new[]
-                {
-                new []
-                {
-                    InlineKeyboardButton.WithCallbackData("Вернуться к просмотру", GetCallbackString(Callback.Back)),
-                },
-                new []
-                {
-                    InlineKeyboardButton.WithCallbackData("Закончить просмотр", GetCallbackString(Callback.Done)),
-                }
-            });
+            InlineKeyboardMarkup inlineKeyboard = new([
+                [ InlineKeyboardButton.WithCallbackData("Вернуться к просмотру", GetCallbackString(Callback.Back)) ],
+                [ InlineKeyboardButton.WithCallbackData("Закончить просмотр", GetCallbackString(Callback.Done)) ]
+            ]);
             return inlineKeyboard;
         }
+
+        /// <summary>
+        /// Преобразование callback в string.
+        /// </summary>
+        /// <param name="value"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
         public static string GetCallbackString(Callback value)
         {
             return value switch

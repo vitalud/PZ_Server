@@ -6,49 +6,37 @@
              xmlns:local="clr-namespace:Server.Views.UserControls"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
+    
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition/>
             <RowDefinition Height="120"/>
         </Grid.RowDefinitions>
+        
         <DataGrid ItemsSource="{Binding Clients}" 
                   Style="{StaticResource DataGridStyle}"
                   Grid.Row="0"
-                  Margin="5"
-                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                  Margin="5">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Логин" Binding="{Binding Data.Login}" CanUserResize="False"
-                                        IsReadOnly="True" Width="100"/>
-                <DataGridTextColumn Header="Депозит" Binding="{Binding Data.Deposit}" CanUserResize="False"
-                                        IsReadOnly="True" Width="*"/>
-                <DataGridTextColumn Header="Платеж" Binding="{Binding Data.Payment}" CanUserResize="False"
-                                        IsReadOnly="True" Width="*"/>
-                <DataGridTextColumn Header="Статус" Binding="{Binding Telegram.State}" CanUserResize="False"
-                                        IsReadOnly="True" Width="*"/>
-                <DataGridTextColumn Header="Состояние" Binding="{Binding Telegram.Stage}" CanUserResize="False"
-                                        IsReadOnly="True" Width="*"/>
-                <DataGridTextColumn Header="Подключение" Binding="{Binding IsActive}" CanUserResize="False"
-                                        IsReadOnly="True" Width="*"/>
+                <DataGridTextColumn Header="Логин" Binding="{Binding Data.Login}"/>
+                <DataGridTextColumn Header="Депозит" Binding="{Binding Data.Deposit}"/>
+                <DataGridTextColumn Header="Платеж" Binding="{Binding Data.Payment}"/>
+                <DataGridTextColumn Header="Статус" Binding="{Binding Telegram.State}"/>
+                <DataGridTextColumn Header="Состояние" Binding="{Binding Telegram.Stage}"/>
+                <DataGridTextColumn Header="Подключение" Binding="{Binding IsActive}"/>
             </DataGrid.Columns>
             <DataGrid.RowDetailsTemplate>
                 <DataTemplate>
                     <Grid>
                         <DataGrid x:Name="SubsGrid" 
                                   Style="{StaticResource DataGridStyle}" 
-                                  Background="WhiteSmoke" 
                                   ItemsSource="{Binding Data.Items}" 
-                                  FontSize="12" 
-                                  HorizontalAlignment="Stretch"
-                                  HorizontalScrollBarVisibility="Disabled">
+                                  FontSize="12">
                             <DataGrid.Columns>
-                                <DataGridTextColumn Header="Стратегия" Binding="{Binding Code}" CanUserResize="False"
-                                                IsReadOnly="True" Width="*"/>
-                                <DataGridTextColumn Header="Торговый лимит" Binding="{Binding TradeLimit}" CanUserResize="False"
-                                                IsReadOnly="True" Width="*"/>
-                                <DataGridTextColumn Header="Статус" Binding="{Binding ActivatedByClient}" CanUserResize="False"
-                                                IsReadOnly="True" Width="*"/>
-                                <DataGridTextColumn Header="Платеж" Binding="{Binding Payment}" CanUserResize="False"
-                                                IsReadOnly="True" Width="*"/>
+                                <DataGridTextColumn Header="Стратегия" Binding="{Binding Code}"/>
+                                <DataGridTextColumn Header="Торговый лимит" Binding="{Binding TradeLimit}"/>
+                                <DataGridTextColumn Header="Статус" Binding="{Binding ActivatedByClient}"/>
+                                <DataGridTextColumn Header="Платеж" Binding="{Binding Payment}"/>
                             </DataGrid.Columns>
                         </DataGrid>
                     </Grid>
@@ -56,6 +44,7 @@
             </DataGrid.RowDetailsTemplate>
 
         </DataGrid>
+        
         <GroupBox Style="{StaticResource GroupBoxStyle}" 
                   Grid.Row="1"
                   Header="Лог">

@@ -3,5 +3,5 @@ using Server.Service.Abstract;
 
 namespace Server.ViewModels.Burse
 {
-    public class BinanceViewModel(BinanceModel binanceModel) : BurseViewModel(binanceModel) { }
+    public partial class BinanceViewModel(BinanceModel binanceModel) : BurseViewModel(binanceModel) { }
 }

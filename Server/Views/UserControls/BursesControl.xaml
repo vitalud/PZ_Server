@@ -4,11 +4,11 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:vm="clr-namespace:Server.ViewModels.Burse"
-             xmlns:str="clr-namespace:ProjectZeroLib;assembly=ProjectZeroLib"
              xmlns:control="clr-namespace:Server.Views.UserControls"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800"
              Background="Transparent">
+    
     <UserControl.Resources>
         <DataTemplate DataType="{x:Type vm:OkxViewModel}">
             <control:BurseControl/>
@@ -20,30 +20,32 @@
             <control:BurseControl/>
         </DataTemplate>
     </UserControl.Resources>
+    
     <Grid>
         <DockPanel>
             <DockPanel Margin="5" DockPanel.Dock="Top">
+                
                 <StackPanel DockPanel.Dock="Top" 
                             Orientation="Horizontal" 
                             HorizontalAlignment="Left"
                             Margin="2">
                     <Button Style="{StaticResource LeftMenuButton}" 
-                            Content="Старт/Стоп" 
+                            Content="Запустить все" 
                             Height="20" 
                             Command="{Binding ConnectAllCommand}"/>
-                    <Border Width="1" Background="Gray" Margin="2"/>
                     <Button Style="{StaticResource LeftMenuButton}" 
                             Content="Открыть логи" 
                             Height="20" 
                             Command="{Binding OpenLogsCommand}"/>
                 </StackPanel>
+                
                 <ListView ItemsSource="{Binding BurseViewModels}">
                     <ListView.View>
                         <GridView>
-                            <GridViewColumn Width="50">
+                            <GridViewColumn Width="60" Header="Команда">
                                 <GridViewColumn.CellTemplate>
                                     <DataTemplate>
-                                        <Button Content="Старт" 
+                                        <Button Content="Запуск" 
                                                 Command="{Binding ConnectCommand}"
                                                 BorderThickness="0"
                                                 Background="Transparent"/>
@@ -65,8 +67,10 @@
                         </GridView>
                     </ListView.View>
                 </ListView>
+                
             </DockPanel>
-            <Border Margin="5" BorderThickness="1" BorderBrush="LightGray">
+            
+            <Border Margin="5">
                 <DockPanel>
                     <UniformGrid DockPanel.Dock="Top" Rows="1" Columns="3">
                         <Button Command="{Binding ShowOkxCommand}"
@@ -82,6 +86,7 @@
                                 Content="Binance"
                                 Height="20"/>
                     </UniformGrid>
+                    
                     <ContentPresenter Content="{Binding CurrentBurseViewModel}"
                                   HorizontalAlignment="Stretch" 
                                   VerticalAlignment="Stretch"/>

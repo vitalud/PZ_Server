@@ -3,5 +3,5 @@ using Server.Service.Abstract;
 
 namespace Server.ViewModels.Burse
 {
-    public class OkxViewModel(OkxModel okxModel) : BurseViewModel(okxModel) { }
+    public partial class OkxViewModel(OkxModel okxModel) : BurseViewModel(okxModel) { }
 }

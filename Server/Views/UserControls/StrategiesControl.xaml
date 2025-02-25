@@ -4,20 +4,35 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              xmlns:local="clr-namespace:Server.Views.UserControls"
-             xmlns:str="clr-namespace:ProjectZeroLib;assembly=ProjectZeroLib"
              mc:Ignorable="d" 
              d:DesignHeight="450" d:DesignWidth="800">
     <Grid>
         <DataGrid ItemsSource="{Binding Items}" 
                   Style="{StaticResource DataGridStyle}"
-                  Margin="5"
-                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                  Margin="5">
             <DataGrid.Columns>
-                <DataGridTextColumn Header="Код" Binding="{Binding Code}" CanUserResize="False"
-                                        IsReadOnly="True" Width="100"/>
-                <DataGridTextColumn Header="Сигнал" Binding="{Binding Signal.Status}" CanUserResize="False"
-                                        IsReadOnly="True" Width="*"/>
+                <DataGridTextColumn Header="Биржа" Binding="{Binding Name}"/>
+                <DataGridTextColumn Header="Код" Binding="{Binding Code}"/>
+                <DataGridTextColumn Header="Сигнал" Binding="{Binding Signal.Signal}"/>
+                <DataGridTextColumn Header="Процент" Binding="{Binding Signal.Percent}"/>
             </DataGrid.Columns>
+            <DataGrid.RowDetailsTemplate>
+                <DataTemplate>
+                    <Grid>
+                        <DataGrid x:Name="stocksGrid" 
+                                        Style="{StaticResource DataGridStyle}" 
+                                        ItemsSource="{Binding Signal.Stocks}" 
+                                        FontSize="12">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Биржа" Binding="{Binding Burse}"/>
+                                <DataGridTextColumn Header="Инструмент" Binding="{Binding Id}"/>
+                                <DataGridTextColumn Header="Тип" Binding="{Binding Type}"/>
+                                <DataGridTextColumn Header="Сторона" Binding="{Binding Side}"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Grid>
+                </DataTemplate>
+            </DataGrid.RowDetailsTemplate>
         </DataGrid>
     </Grid>
 </UserControl>
