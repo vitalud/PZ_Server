@@ -23,6 +23,8 @@ namespace Server.Models
         private readonly TcpListener _listener = new(IPAddress.Parse("127.0.0.1"), 1021);
         private TcpClient? _quik;
 
+        private readonly CancellationTokenSource _cts = new();
+
         private bool _isConnected;
 
         private readonly SourceList<Instrument> _instruments = new();
@@ -91,11 +93,12 @@ namespace Server.Models
                 {
                     while (true)
                     {
-                        var message = await TcpService.ReadMessageAsync(stream);
+                        var message = await TcpService.ReadMessageAsync(stream, _cts.Token);
                         if (message != null)
                         {
                             GetQuikData(message);
                         }
+                        await Task.Delay(25);
                     }
                 }
                 catch (Exception ex)

@@ -117,7 +117,7 @@ namespace Server.Models.Burse
                 }
                 else if (instrument.Name.Type.Equals("CoinFutures"))
                 {
-                    klineSub = await Socket.CoinFuturesApi.SubscribeToKlineUpdatesAsync(instrument.Name.Id, period, 
+                    klineSub = await Socket.CoinFuturesApi.ExchangeData.SubscribeToKlineUpdatesAsync(instrument.Name.Id, period, 
                         data =>
                         {
                             if (data != null)

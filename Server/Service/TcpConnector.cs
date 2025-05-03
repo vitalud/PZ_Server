@@ -20,6 +20,8 @@ namespace Server.Service
 
         private readonly Dictionary<string, NetworkStream> _sessions = [];
 
+        private readonly CancellationTokenSource _cts = new();
+
         public TcpConnector(ClientsModel clientDataBase, StrategiesRepository strategies) : base(clientDataBase, strategies)
         {
             _connectionSemaphore = new SemaphoreSlim(connectionNumber);
@@ -66,7 +68,7 @@ namespace Server.Service
             try
             {
                 using var networkStream = authClient.GetStream();
-                var receivedMessage = await TcpService.ReadMessageAsync(networkStream);
+                var receivedMessage = await TcpService.ReadMessageAsync(networkStream, _cts.Token);
                 string[] data = receivedMessage.Split('_');
                 Logger.AddLog(Logs, $"authorization from {data[0]}");
 
@@ -107,7 +109,7 @@ namespace Server.Service
                 var networkStream = dataClient.GetStream();
                 while (true)
                 {
-                    var receivedMessage = await TcpService.ReadMessageAsync(networkStream);
+                    var receivedMessage = await TcpService.ReadMessageAsync(networkStream, _cts.Token);
                     var data = receivedMessage.Split('_');
                     if (client == null)
                     {
